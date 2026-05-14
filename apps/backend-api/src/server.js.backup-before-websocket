@@ -1,0 +1,76 @@
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+require('dotenv').config();
+
+// Import routes
+const authRoutes = require('./routes/authRoutes');
+const serviceRoutes = require('./routes/serviceRoutes');
+const driverRoutes = require('./routes/driverRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const discoveryRoutes = require('./routes/discoveryRoutes');
+const stripeConnectRoutes = require('./routes/stripeConnectRoutes');
+const refundRoutes = require('./routes/refundRoutes');
+const invoiceRoutes = require('./routes/invoiceRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const customerRoutes = require('./routes/customerRoutes');
+const providerRoutes = require('./routes/providerRoutes');
+
+const app = express();
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// MongoDB connection
+mongoose.connect('mongodb://localhost:27017/carcareconnect')
+  .then(() => console.log('✅ MongoDB connected to Car Care Connect'))
+  .catch(err => console.error('MongoDB error:', err));
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/services', serviceRoutes);
+app.use('/api/driver', driverRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/discovery', discoveryRoutes);
+app.use('/api/stripe', stripeConnectRoutes);
+app.use('/api/refunds', refundRoutes);
+app.use('/api/invoices', invoiceRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/customer', customerRoutes);
+app.use('/api/provider', providerRoutes);
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'healthy', service: 'Car Care Connect API', timestamp: new Date() });
+});
+
+// Test endpoint
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'Car Care Connect API is working!' });
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`
+╔═══════════════════════════════════════════════════════╗
+║     🚗💨 CAR CARE CONNECT BACKEND RUNNING              ║
+╠═══════════════════════════════════════════════════════╣
+║  Server: http://localhost:${PORT}                       ║
+║  Health: http://localhost:${PORT}/api/health           ║
+║  Test: http://localhost:${PORT}/api/test               ║
+║  Auth: http://localhost:${PORT}/api/auth               ║
+║  Services: http://localhost:${PORT}/api/services       ║
+║  Driver: http://localhost:${PORT}/api/driver           ║
+║  Admin: http://localhost:${PORT}/api/admin             ║
+╚═══════════════════════════════════════════════════════╝
+  `);
+});
+
+
+
+
+
+
+
+

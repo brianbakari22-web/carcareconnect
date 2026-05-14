@@ -1,0 +1,99 @@
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const http = require('http');
+const socketIO = require('socket.io');
+require('dotenv').config();
+
+// Import routes
+const authRoutes = require('./routes/authRoutes');
+const serviceRoutes = require('./routes/serviceRoutes');
+const driverRoutes = require('./routes/driverRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const discoveryRoutes = require('./routes/discoveryRoutes');
+const stripeConnectRoutes = require('./routes/stripeConnectRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
+const promoRoutes = require('./routes/promoRoutes');
+const loyaltyRoutes = require('./routes/loyaltyRoutes');
+const refundRoutes = require('./routes/refundRoutes');
+const invoiceRoutes = require('./routes/invoiceRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const customerRoutes = require('./routes/customerRoutes');
+const providerRoutes = require('./routes/providerRoutes');
+const chatRoutes = require('./routes/chatRoutes');
+
+const app = express();
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// MongoDB connection
+mongoose.connect('mongodb://localhost:27017/carcareconnect')
+  .then(() => console.log('✅ MongoDB connected to Car Care Connect'))
+  .catch(err => console.error('MongoDB error:', err));
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/services', serviceRoutes);
+app.use('/api/driver', driverRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/discovery', discoveryRoutes);
+app.use('/api/stripe', stripeConnectRoutes);
+app.use('/api/refunds', refundRoutes);
+app.use('/api/invoices', invoiceRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/customer', customerRoutes);
+app.use('/api/provider', providerRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/promo', promoRoutes);
+app.use('/api/loyalty', loyaltyRoutes);
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'healthy', service: 'Car Care Connect API', timestamp: new Date() });
+});
+
+// Test endpoint
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'Car Care Connect API is working!' });
+});
+
+// ============ WEBSOCKET SETUP (ADDED) ============
+const server = http.createServer(app);
+const io = socketIO(server, {
+  cors: {
+    origin: ['http://localhost:3000', 'http://localhost:3001'],
+    credentials: true
+  }
+});
+
+// Initialize socket handlers (create this file next)
+try {
+  require('./sockets')(io);
+  console.log('✅ WebSocket handlers loaded');
+} catch (err) {
+  console.log('⚠️ WebSocket handlers not yet created, skipping...');
+}
+
+// ============ START SERVER WITH WEBSOCKETS ============
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log(`
+╔═══════════════════════════════════════════════════════════════════╗
+║     🚗💨 CAR CARE CONNECT BACKEND RUNNING (WITH WEBSOCKETS)      ║
+╠═══════════════════════════════════════════════════════════════════╣
+║  Server: http://localhost:${PORT}                                   ║
+║  WebSocket: ws://localhost:${PORT}                                 ║
+║  Health: http://localhost:${PORT}/api/health                       ║
+║  Test: http://localhost:${PORT}/api/test                           ║
+║  Auth: http://localhost:${PORT}/api/auth                           ║
+║  Services: http://localhost:${PORT}/api/services                   ║
+║  Driver: http://localhost:${PORT}/api/driver                       ║
+║  Admin: http://localhost:${PORT}/api/admin                         ║
+╚═══════════════════════════════════════════════════════════════════╝
+  `);
+});
+
+
+

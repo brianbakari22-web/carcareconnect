@@ -1,0 +1,4 @@
+  // Driver Dashboard redirect
+  if (user?.role === 'driver') {
+    return <DriverDashboard user={user} onLogout={onLogout} />;
+  }

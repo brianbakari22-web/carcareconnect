@@ -1,0 +1,50 @@
+            {/* Services Tab */}
+            {activeTab === 'services' && (
+              <div>
+                <div style={styles.filtersBar}>
+                  <select style={styles.filterSelect} value={filters.category} onChange={(e) => setFilters({...filters, category: e.target.value})}>
+                    <option value="all">All Categories</option>
+                    <option value="oil-change">Oil Change</option>
+                    <option value="brake-repair">Brake Repair</option>
+                    <option value="tire-service">Tire Service</option>
+                    <option value="engine-repair">Engine Repair</option>
+                    <option value="ac-repair">AC Repair</option>
+                    <option value="transmission">Transmission</option>
+                    <option value="detailing">Detailing</option>
+                    <option value="maintenance">Maintenance</option>
+                  </select>
+                  <input style={styles.filterInput} type="text" placeholder="Search services..." value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} />
+                  <input style={styles.filterInputSmall} type="number" placeholder="Min $" value={filters.minPrice} onChange={(e) => setFilters({...filters, minPrice: e.target.value})} />
+                  <input style={styles.filterInputSmall} type="number" placeholder="Max $" value={filters.maxPrice} onChange={(e) => setFilters({...filters, maxPrice: e.target.value})} />
+                  <button style={styles.filterBtn} onClick={fetchServices}>Apply</button>
+                </div>
+
+                <div style={styles.servicesGrid}>
+                  {services.length === 0 ? (
+                    <div style={styles.emptyState}>No services available. Check back later!</div>
+                  ) : (
+                    services.map(service => (
+                      <div key={service._id} style={{ ...styles.serviceCard, backgroundColor: darkMode ? '#1e293b' : 'white' }}>
+                        <h3>{service.name}</h3>
+                        <p style={styles.providerName}>🔧 {service.providerBusinessName || service.providerName || service.providerId?.businessName}</p>
+                        <p>{service.description?.substring(0, 100)}...</p>
+                        <div style={styles.servicePrice}>
+                          <span style={styles.price}>${service.price}</span>
+                          <span style={styles.duration}>⏱️ {service.duration} min</span>
+                        </div>
+                        {service.discountedPrice && (
+                          <div style={styles.discountBadge}>Save ${(service.price - service.discountedPrice).toFixed(2)}</div>
+                        )}
+                        <button style={styles.bookBtn} onClick={() => { 
+                          setSelectedService(service); 
+                          setBookingData({ date: '', time: '', vehicleId: vehicles[0]?._id || '', isConcierge: false, pickupAddress: '', notes: '' });
+                          setShowBookingModal(true); 
+                        }}>
+                          Book Now →
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}

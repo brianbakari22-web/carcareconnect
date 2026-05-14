@@ -1,0 +1,4 @@
+.env
+apps/backend-api/.env
+*.env
+*.env.local

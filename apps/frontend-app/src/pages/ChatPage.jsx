@@ -31,7 +31,7 @@ function ChatPage({ user, onClose }) {
   // Fetch inbox
   const fetchInbox = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/chat/inbox', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/chat/inbox', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -48,7 +48,7 @@ function ChatPage({ user, onClose }) {
   // Fetch sent messages
   const fetchSentMessages = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/chat/sent', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/chat/sent', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -64,7 +64,7 @@ function ChatPage({ user, onClose }) {
   const fetchConversation = async (userId, userName, userRole, bookingId) => {
     setLoadingMessages(true);
     try {
-      const url = `http://localhost:5000/api/chat/conversation/${userId}`;
+      const url = `https://carcareconnect-backend.onrender.com/api/chat/conversation/${userId}`;
       const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -101,7 +101,7 @@ function ChatPage({ user, onClose }) {
     scrollToBottom();
     
     try {
-      const res = await fetch('http://localhost:5000/api/chat/send', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/chat/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

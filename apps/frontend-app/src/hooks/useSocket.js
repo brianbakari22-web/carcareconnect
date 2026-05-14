@@ -16,7 +16,7 @@ export const useSocket = () => {
     }
     
     // Connect to socket server
-    socketRef.current = io('http://localhost:5000', {
+    socketRef.current = io('https://carcareconnect-backend.onrender.com', {
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,

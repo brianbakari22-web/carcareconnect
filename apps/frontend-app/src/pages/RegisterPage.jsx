@@ -44,7 +44,7 @@ function RegisterPage({ role, onBack, onRegisterComplete }) {
   const checkEmailExists = async (email) => {
     if (email.length < 3) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/auth/check-email?email=${encodeURIComponent(email)}`);
+      const res = await fetch(`https://carcareconnect-backend.onrender.com/api/auth/check-email?email=${encodeURIComponent(email)}`);
       const data = await res.json();
       setEmailValid(!data.exists);
     } catch (error) {
@@ -55,7 +55,7 @@ function RegisterPage({ role, onBack, onRegisterComplete }) {
   const checkPhoneExists = async (phone) => {
     if (phone.length < 5) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/auth/check-phone?phone=${encodeURIComponent(phone)}`);
+      const res = await fetch(`https://carcareconnect-backend.onrender.com/api/auth/check-phone?phone=${encodeURIComponent(phone)}`);
       const data = await res.json();
       setPhoneValid(!data.exists);
     } catch (error) {
@@ -148,7 +148,7 @@ function RegisterPage({ role, onBack, onRegisterComplete }) {
 
       console.log('Sending registration payload:', payload);
 
-      const response = await fetch('http://localhost:5000/api/auth/register', {
+      const response = await fetch('https://carcareconnect-backend.onrender.com/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

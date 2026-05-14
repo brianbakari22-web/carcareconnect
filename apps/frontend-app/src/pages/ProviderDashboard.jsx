@@ -107,7 +107,7 @@ function ProviderDashboard({ user, onLogout }) {
   useEffect(() => {
     const fetchUnreadCount = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/chat/unread/count', {
+        const res = await fetch('https://carcareconnect-backend.onrender.com/api/chat/unread/count', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
@@ -179,7 +179,7 @@ function ProviderDashboard({ user, onLogout }) {
 
   const fetchServices = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/services/provider/my-services', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/services/provider/my-services', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -189,7 +189,7 @@ function ProviderDashboard({ user, onLogout }) {
 
   const fetchBookings = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/services/provider/bookings', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/services/provider/bookings', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -199,7 +199,7 @@ function ProviderDashboard({ user, onLogout }) {
 
   const fetchEarnings = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/payments/provider/earnings', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/payments/provider/earnings', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -214,7 +214,7 @@ function ProviderDashboard({ user, onLogout }) {
   const fetchPayoutHistory = async () => {
     setLoadingPayouts(true);
     try {
-      const res = await fetch('http://localhost:5000/api/payments/provider/payout-history', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/payments/provider/payout-history', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -229,7 +229,7 @@ function ProviderDashboard({ user, onLogout }) {
 
   const fetchBankAccount = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/provider/bank-account', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/provider/bank-account', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -244,7 +244,7 @@ function ProviderDashboard({ user, onLogout }) {
     e.preventDefault();
     setLoadingBank(true);
     try {
-      const res = await fetch('http://localhost:5000/api/provider/bank-account', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/provider/bank-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(bankAccount)
@@ -264,7 +264,7 @@ function ProviderDashboard({ user, onLogout }) {
   const deleteBankAccount = async () => {
     if (window.confirm('Remove bank account?')) {
       try {
-        const res = await fetch('http://localhost:5000/api/provider/bank-account', {
+        const res = await fetch('https://carcareconnect-backend.onrender.com/api/provider/bank-account', {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -280,7 +280,7 @@ function ProviderDashboard({ user, onLogout }) {
 
   const checkStripeStatus = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/stripe/account-status', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/stripe/account-status', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -291,7 +291,7 @@ function ProviderDashboard({ user, onLogout }) {
   const connectStripe = async () => {
     setLoadingStripe(true);
     try {
-      const res = await fetch('http://localhost:5000/api/stripe/onboarding-link', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/stripe/onboarding-link', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -304,7 +304,7 @@ function ProviderDashboard({ user, onLogout }) {
   const disconnectStripe = async () => {
     if (window.confirm('Disconnect Stripe?')) {
       try {
-        const res = await fetch('http://localhost:5000/api/stripe/disconnect', {
+        const res = await fetch('https://carcareconnect-backend.onrender.com/api/stripe/disconnect', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -320,7 +320,7 @@ function ProviderDashboard({ user, onLogout }) {
   const updateProfile = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/provider/business-profile', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/provider/business-profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
@@ -360,10 +360,10 @@ function ProviderDashboard({ user, onLogout }) {
         inclusions: serviceForm.inclusions.split(',').map(i => i.trim())
       };
 
-      let url = 'http://localhost:5000/api/services';
+      let url = 'https://carcareconnect-backend.onrender.com/api/services';
       let method = 'POST';
       if (editingService) {
-        url = `http://localhost:5000/api/services/${editingService._id}`;
+        url = `https://carcareconnect-backend.onrender.com/api/services/${editingService._id}`;
         method = 'PUT';
       }
 
@@ -388,7 +388,7 @@ function ProviderDashboard({ user, onLogout }) {
   const handleDeleteService = async (serviceId) => {
     if (window.confirm('Delete this service?')) {
       try {
-        const res = await fetch(`http://localhost:5000/api/services/${serviceId}`, {
+        const res = await fetch(`https://carcareconnect-backend.onrender.com/api/services/${serviceId}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -403,7 +403,7 @@ function ProviderDashboard({ user, onLogout }) {
 
   const handleToggleStatus = async (serviceId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/services/${serviceId}/toggle-status`, {
+      const res = await fetch(`https://carcareconnect-backend.onrender.com/api/services/${serviceId}/toggle-status`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -435,7 +435,7 @@ function ProviderDashboard({ user, onLogout }) {
   const handleUpdateBookingStatus = async (bookingId, status) => {
     try {
       updateBookingStatus(bookingId, status);
-      const res = await fetch(`http://localhost:5000/api/services/provider/bookings/${bookingId}/status`, {
+      const res = await fetch(`https://carcareconnect-backend.onrender.com/api/services/provider/bookings/${bookingId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ status })
@@ -459,7 +459,7 @@ function ProviderDashboard({ user, onLogout }) {
       return;
     }
     try {
-      const res = await fetch('http://localhost:5000/api/payments/provider/payout', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/payments/provider/payout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ amount: parseFloat(payoutAmount) })
@@ -479,7 +479,7 @@ function ProviderDashboard({ user, onLogout }) {
 
   const downloadInvoice = async (paymentId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/invoices/download/${paymentId}`, {
+      const res = await fetch(`https://carcareconnect-backend.onrender.com/api/invoices/download/${paymentId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {

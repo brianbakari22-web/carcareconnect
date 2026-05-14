@@ -99,7 +99,7 @@ function CustomerDashboard({ user, onLogout }) {
   useEffect(() => {
     const fetchLoyalty = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/loyalty/my-points', {
+        const res = await fetch('https://carcareconnect-backend.onrender.com/api/loyalty/my-points', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
@@ -204,7 +204,7 @@ function CustomerDashboard({ user, onLogout }) {
 
   const fetchServices = async () => {
     try {
-      let url = 'http://localhost:5000/api/services';
+      let url = 'https://carcareconnect-backend.onrender.com/api/services';
       const res = await fetch(url);
       const data = await res.json();
       if (data.success) setServices(data.services || []);
@@ -215,7 +215,7 @@ function CustomerDashboard({ user, onLogout }) {
 
   const fetchVehicles = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/services/customer/vehicles', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/services/customer/vehicles', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -227,7 +227,7 @@ function CustomerDashboard({ user, onLogout }) {
 
   const fetchBookings = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/services/customer/bookings', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/services/customer/bookings', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -240,7 +240,7 @@ function CustomerDashboard({ user, onLogout }) {
   const fetchPaymentHistory = async () => {
     setLoadingPayments(true);
     try {
-      const res = await fetch('http://localhost:5000/api/payments/customer/history', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/payments/customer/history', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -258,7 +258,7 @@ function CustomerDashboard({ user, onLogout }) {
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
       
-      const res = await fetch('http://localhost:5000/api/customer/profile', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/customer/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
@@ -287,7 +287,7 @@ function CustomerDashboard({ user, onLogout }) {
 
   const submitReview = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/reviews/submit', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/reviews/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -340,7 +340,7 @@ function CustomerDashboard({ user, onLogout }) {
         pickupAddress: bookingData.pickupAddress,
         notes: bookingData.notes
       };
-      const res = await fetch('http://localhost:5000/api/services/customer/bookings', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/services/customer/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(payload)
@@ -363,7 +363,7 @@ function CustomerDashboard({ user, onLogout }) {
   const addVehicle = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/services/customer/vehicles', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/services/customer/vehicles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(newVehicle)
@@ -383,7 +383,7 @@ function CustomerDashboard({ user, onLogout }) {
   const deleteVehicle = async (vehicleId) => {
     if (window.confirm('Remove this vehicle?')) {
       try {
-        const res = await fetch(`http://localhost:5000/api/services/customer/vehicles/${vehicleId}`, {
+        const res = await fetch(`https://carcareconnect-backend.onrender.com/api/services/customer/vehicles/${vehicleId}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -400,7 +400,7 @@ function CustomerDashboard({ user, onLogout }) {
 
   const downloadInvoice = async (bookingId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/invoices/download/${bookingId}`, {
+      const res = await fetch(`https://carcareconnect-backend.onrender.com/api/invoices/download/${bookingId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -422,7 +422,7 @@ function CustomerDashboard({ user, onLogout }) {
       return;
     }
     try {
-      const res = await fetch('http://localhost:5000/api/refunds/request', {
+      const res = await fetch('https://carcareconnect-backend.onrender.com/api/refunds/request', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Care Connect - Admin Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; }
+        .container { display: flex; min-height: 100vh; }
+        .sidebar {
+            width: 260px;
+            background: #1e293b;
+            color: white;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        .sidebar-header { padding: 20px; text-align: center; border-bottom: 1px solid #334155; }
+        .sidebar-header h2 { font-size: 20px; }
+        .sidebar-header p { font-size: 12px; color: #94a3b8; margin-top: 5px; }
+        .menu-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            color: #94a3b8;
+            transition: all 0.2s;
+        }
+        .menu-item:hover, .menu-item.active { background: #334155; color: white; }
+        .main-content { flex: 1; margin-left: 260px; padding: 20px; }
+        .top-bar {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logout-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-value { font-size: 28px; font-weight: bold; color: #8b5cf6; }
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h3 { margin-bottom: 15px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background: #f9fafb; }
+        button {
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-danger { background: #ef4444; }
+        .btn-success { background: #10b981; }
+        .online-dot {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .driver-list { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+        .driver-item {
+            background: #f3f4f6;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        .loading { text-align: center; padding: 50px; }
+        .filters { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        select, input {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>🚗💨 Car Care</h2>
+                <p>Admin Panel</p>
+            </div>
+            <div class="menu-item active" data-tab="dashboard">📊 Dashboard</div>
+            <div class="menu-item" data-tab="users">👥 Users</div>
+            <div class="menu-item" data-tab="providers">🔧 Providers</div>
+            <div class="menu-item" data-tab="drivers">🚗 Drivers</div>
+            <div class="menu-item" data-tab="bookings">📅 Bookings</div>
+            <div class="menu-item" data-tab="services">🛠️ Services</div>
+            <div class="menu-item" data-tab="revenue">💰 Revenue</div>
+            <div class="menu-item" data-tab="payouts">💸 Payouts</div>
+            <div class="menu-item" data-tab="refunds">🔄 Refunds</div>
+            <div class="menu-item" data-tab="reviews">⭐ Reviews</div>
+            <div class="menu-item" data-tab="promos">🎟️ Promo Codes</div>
+            <div class="menu-item" data-tab="loyalty">💎 Loyalty</div>
+        </div>
+        <div class="main-content">
+            <div class="top-bar">
+                <h1 id="pageTitle">Dashboard</h1>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+            <div id="content" class="loading">Loading dashboard...</div>
+        </div>
+    </div>
+
+    <script>
+        // Direct API calls without redirects
+        let currentTab = 'dashboard';
+        let allUsers = [], allBookings = [], allServices = [], allRefunds = [], allReviews = [], allPromoCodes = [], allLoyalty = [];
+        let onlineDrivers = [];
+        let filterRole = 'all', filterStatus = 'all', searchTerm = '';
+        let stats = { users: { total: 0, customers: 0, providers: 0, drivers: 0 }, bookings: { total: 0, completed: 0 }, payments: { totalRevenue: 0 } };
+        let token = localStorage.getItem('adminToken');
+
+        // If no token, try to get from adminUser
+        if (!token) {
+            const adminUser = localStorage.getItem('adminUser');
+            if (adminUser) {
+                try {
+                    const user = JSON.parse(adminUser);
+                    token = user.token;
+                } catch(e) {}
+            }
+        }
+
+        // Show login form if no token
+        if (!token) {
+            document.getElementById('content').innerHTML = `
+                <div class="card" style="max-width:400px; margin:50px auto;">
+                    <h3>Admin Login Required</h3>
+                    <input type="email" id="loginEmail" placeholder="Email" value="admin@carcareconnect.com" style="width:100%; padding:10px; margin:10px 0;">
+                    <input type="password" id="loginPassword" placeholder="Password" value="password123" style="width:100%; padding:10px; margin:10px 0;">
+                    <button onclick="adminLogin()" style="width:100%; padding:10px;">Login</button>
+                    <div id="loginError" style="color:red; margin-top:10px;"></div>
+                </div>
+            `;
+        } else {
+            loadDashboard();
+        }
+
+        async function adminLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            try {
+                const res = await fetch('https://carcareconnect-backend.onrender.com/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, role: 'admin' })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    localStorage.setItem('adminToken', data.token);
+                    localStorage.setItem('adminUser', JSON.stringify(data.user));
+                    token = data.token;
+                    loadDashboard();
+                } else {
+                    document.getElementById('loginError').innerText = 'Invalid credentials';
+                }
+            } catch(err) {
+                document.getElementById('loginError').innerText = 'Backend not running';
+            }
+        }
+
+        async function loadDashboard() { await fetchAll(); loadTab('dashboard'); }
+
+        async function fetchAll() {
+            try {
+                const statsRes = await fetch('https://carcareconnect-backend.onrender.com/api/admin/stats', { headers: { 'Authorization': `Bearer ${token}` } });
+                const statsData = await statsRes.json();
+                if (statsData.success) stats = statsData.stats;
+            } catch(e) { console.log('Stats error'); }
+
+            try {
+                const usersRes = await fetch('https://carcareconnect-backend.onrender.com/api/admin/users', { headers: { 'Authorization': `Bearer ${token}` } });
+                const usersData = await usersRes.json();
+                if (usersData.success) allUsers = usersData.users;
+            } catch(e) { console.log('Users error'); }
+
+            try {
+                const bookingsRes = await fetch('https://carcareconnect-backend.onrender.com/api/admin/bookings', { headers: { 'Authorization': `Bearer ${token}` } });
+                const bookingsData = await bookingsRes.json();
+                if (bookingsData.success) allBookings = bookingsData.bookings;
+            } catch(e) { console.log('Bookings error'); }
+
+            try {
+                const servicesRes = await fetch('https://carcareconnect-backend.onrender.com/api/admin/services', { headers: { 'Authorization': `Bearer ${token}` } });
+                const servicesData = await servicesRes.json();
+                if (servicesData.success) allServices = servicesData.services;
+            } catch(e) { console.log('Services error'); }
+
+            try {
+                const refundsRes = await fetch('https://carcareconnect-backend.onrender.com/api/refunds/all', { headers: { 'Authorization': `Bearer ${token}` } });
+                const refundsData = await refundsRes.json();
+                if (refundsData.success) allRefunds = refundsData.refunds;
+            } catch(e) { console.log('Refunds error'); }
+
+            try {
+                const reviewsRes = await fetch('https://carcareconnect-backend.onrender.com/api/reviews/all', { headers: { 'Authorization': `Bearer ${token}` } });
+                const reviewsData = await reviewsRes.json();
+                if (reviewsData.success) allReviews = reviewsData.reviews;
+            } catch(e) { console.log('Reviews error'); }
+
+            try {
+                const promosRes = await fetch('https://carcareconnect-backend.onrender.com/api/promo/all', { headers: { 'Authorization': `Bearer ${token}` } });
+                const promosData = await promosRes.json();
+                if (promosData.success) allPromoCodes = promosData.promoCodes;
+            } catch(e) { console.log('Promos error'); }
+
+            try {
+                const loyaltyRes = await fetch('https://carcareconnect-backend.onrender.com/api/loyalty/leaderboard');
+                const loyaltyData = await loyaltyRes.json();
+                if (loyaltyData.success) allLoyalty = loyaltyData.leaderboard;
+            } catch(e) { console.log('Loyalty error'); }
+
+            try {
+                const driversRes = await fetch('https://carcareconnect-backend.onrender.com/api/driver/online');
+                const driversData = await driversRes.json();
+                if (driversData.success) onlineDrivers = driversData.drivers || [];
+            } catch(e) { console.log('Drivers error'); }
+        }
+
+        function renderDashboard() {
+            const totalRevenue = stats.payments?.totalRevenue || 0;
+            const totalUsers = stats.users?.total || allUsers.length;
+            const customers = stats.users?.customers || allUsers.filter(u=>u.role==='customer').length;
+            const providers = stats.users?.providers || allUsers.filter(u=>u.role==='provider').length;
+            const drivers = stats.users?.drivers || allUsers.filter(u=>u.role==='driver').length;
+            const totalBookings = stats.bookings?.total || allBookings.length;
+
+            let html = `
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-value">$${totalRevenue}</div><div>Total Revenue</div></div>
+                    <div class="stat-card"><div class="stat-value">${totalUsers}</div><div>Total Users</div></div>
+                    <div class="stat-card"><div class="stat-value">${customers}</div><div>Customers</div></div>
+                    <div class="stat-card"><div class="stat-value">${providers}</div><div>Providers</div></div>
+                    <div class="stat-card"><div class="stat-value">${drivers}</div><div>Drivers</div></div>
+                    <div class="stat-card"><div class="stat-value">${totalBookings}</div><div>Bookings</div></div>
+                </div>
+                <div class="card"><h3>🟢 Online Drivers (${onlineDrivers.length})</h3><div class="driver-list">${onlineDrivers.map(d=>`<div class="driver-item"><span class="online-dot"></span> ${d.name || d.firstName || 'Driver'}</div>`).join('')||'No drivers online'}</div></div>
+                <div class="card"><h3>📋 Recent Users</h3><div class="table-wrapper"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th></thead><tbody>${allUsers.slice(0,5).map(u=>`<tr><td>${u.firstName||''} ${u.lastName||''}</td><td>${u.email}</td><td>${u.role}</td></tr>`).join('')}</tbody>能得到</div></div>
+                <div class="card"><h3>📅 Recent Bookings</h3><div class="table-wrapper">能able<thead><tr><th>Service</th><th>Customer</th><th>Status</th><th>Amount</th></tr></thead><tbody>${allBookings.slice(0,5).map(b=>`<tr><td>${b.serviceName||'-'}</td><td>${b.customerId?.firstName||'-'}</td><td>${b.status}</td><td>$${b.totalAmount||0}</td></tr>`).join('')}</tbody>能得到</div></div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderUsers() {
+            let filtered = allUsers.filter(u=>(filterRole==='all'||u.role===filterRole)&&(!searchTerm||u.email.toLowerCase().includes(searchTerm.toLowerCase())));
+            let html = `<div class="card"><div class="filters"><select id="roleFilter" onchange="filterRoleChange()"><option value="all">All</option><option value="customer">Customers</option><option value="provider">Providers</option><option value="driver">Drivers</option></select><input id="searchInput" placeholder="Search..." onkeyup="filterSearch()"></div><div class="table-wrapper">能able<thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead><tbody>${filtered.map(u=>`<tr><td><strong>${u.firstName||''} ${u.lastName||''}</strong>${u.businessName?`<br><small>${u.businessName}</small>`:''}</td><td>${u.email}</td><td>${u.role}</td><td>${u.isActive?'Active':'Suspended'}</td><td><button class="btn-danger" onclick="updateUserStatus('${u._id}',${!u.isActive})">${u.isActive?'Suspend':'Activate'}</button> ${(u.role==='provider'||u.role==='driver')&&!u.isVerified?`<button class="btn-success" onclick="verifyUser('${u._id}','${u.role}')">Verify</button>`:''}</td></tr>`).join('')}</tbody>能得到</div></div>`;
+            document.getElementById('content').innerHTML = html;
+            if(document.getElementById('roleFilter')) document.getElementById('roleFilter').value = filterRole;
+        }
+
+        function renderProviders() {
+            let providers = allUsers.filter(u=>u.role==='provider');
+            let html = `<div class="card"><div class="table-wrapper">能able<thead><tr><th>Business</th><th>Owner</th><th>Email</th><th>Verified</th><th>Actions</th></tr></thead><tbody>${providers.map(p=>`<tr><td><strong>${p.businessName||p.firstName}</strong></td><td>${p.firstName||''} ${p.lastName||''}</td><td>${p.email}</td><td>${p.isVerified?'Verified':'Pending'}</td><td>${!p.isVerified?`<button class="btn-success" onclick="verifyUser('${p._id}','Provider')">Verify</button>`:''} <button class="btn-danger" onclick="updateUserStatus('${p._id}',false)">Suspend</button></td></tr>`).join('')}</tbody>能得到</div></div>`;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderDrivers() {
+            let drivers = allUsers.filter(u=>u.role==='driver');
+            let html = `<div class="card"><div class="table-wrapper">能able<thead><tr><th>Name</th><th>Email</th><th>Vehicle</th><th>Verified</th><th>Actions</th></tr></thead><tbody>${drivers.map(d=>`<tr><td>${d.firstName||''} ${d.lastName||''}</td><td>${d.email}</td><td>${d.vehicleModel||'N/A'}</td><td>${d.isVerified?'Verified':'Pending'}</td><td>${!d.isVerified?`<button class="btn-success" onclick="verifyUser('${d._id}','Driver')">Verify</button>`:''} <button class="btn-danger" onclick="updateUserStatus('${d._id}',false)">Suspend</button></td></tr>`).join('')}</tbody>能得到</div></div>`;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderBookings() {
+            let filtered = allBookings.filter(b=>filterStatus==='all'||b.status===filterStatus);
+            let html = `<div class="card"><select id="statusFilter" onchange="filterStatusChange()"><option value="all">All</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select><div class="table-wrapper">能able<thead><tr><th>Service</th><th>Customer</th><th>Provider</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>${filtered.map(b=>`<tr><td>${b.serviceName||'-'}</td><td>${b.customerId?.firstName||'-'}</td><td>${b.providerId?.businessName||'-'}</td><td>${new Date(b.bookingDate).toLocaleDateString()}</td><td>$${b.totalAmount||0}</td><td>${b.status}</td></tr>`).join('')}</tbody>能得到</div></div>`;
+            document.getElementById('content').innerHTML = html;
+            if(document.getElementById('statusFilter')) document.getElementById('statusFilter').value = filterStatus;
+        }
+
+        function renderServices() {
+            let html = `<div class="card"><div class="table-wrapper">能able<thead><tr><th>Name</th><th>Provider</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead><tbody>${allServices.map(s=>`<tr><td>${s.name}</td><td>${s.providerId?.businessName||s.providerId?.firstName}</td><td>$${s.price}</td><td>${s.isActive?'Active':'Hidden'}</td><td><button class="${s.isActive?'btn-danger':'btn-success'}" onclick="toggleService('${s._id}',${s.isActive})">${s.isActive?'Hide':'Show'}</button></td></tr>`).join('')}</tbody>能得到</div></div>`;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderRevenue() {
+            const totalRevenue = stats.payments?.totalRevenue || 0;
+            let html = `<div class="stats-grid"><div class="stat-card"><div class="stat-value">$${totalRevenue}</div><div>Total Revenue</div></div><div class="stat-card"><div class="stat-value">$${(totalRevenue*0.15).toFixed(2)}</div><div>Platform Fee (15%)</div></div><div class="stat-card"><div class="stat-value">$${(totalRevenue*0.7).toFixed(2)}</div><div>Provider Payouts (70%)</div></div><div class="stat-card"><div class="stat-value">$${(totalRevenue*0.15).toFixed(2)}</div><div>Driver Payouts (15%)</div></div></div><div class="card"><h3>Revenue Summary</h3><div style="text-align:center;padding:40px;"><div style="font-size:48px;">💰</div><div style="font-size:24px;font-weight:bold;">$${totalRevenue}</div><div>Total Platform Revenue</div></div></div>`;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderPayouts() { document.getElementById('content').innerHTML = '<div class="card"><h3>Payouts</h3><div class="loading">No pending payouts</div></div>'; }
+        function renderRefunds() { document.getElementById('content').innerHTML = '<div class="card"><h3>Refunds</h3><div class="loading">No refund requests</div></div>'; }
+        function renderReviews() { document.getElementById('content').innerHTML = '<div class="card"><h3>Reviews</h3><div class="loading">No reviews yet</div></div>'; }
+        function renderPromos() { document.getElementById('content').innerHTML = '<div class="card"><h3>Promo Codes</h3><div class="loading">No promo codes</div></div>'; }
+        function renderLoyalty() { document.getElementById('content').innerHTML = '<div class="card"><h3>Loyalty</h3><div class="loading">No loyalty data</div></div>'; }
+
+        async function updateUserStatus(userId, activate) {
+            try { await fetch(`https://carcareconnect-backend.onrender.com/api/admin/users/${userId}`,{method:'PUT',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({isActive:activate})}); alert(`User ${activate?'activated':'suspended'}`); await fetchAll(); loadTab(currentTab); } catch(e){alert('Error');} }
+        async function verifyUser(userId, role) {
+            try { await fetch(`https://carcareconnect-backend.onrender.com/api/admin/users/${userId}`,{method:'PUT',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({isVerified:true})}); alert(`${role} verified!`); await fetchAll(); loadTab(currentTab); } catch(e){alert('Error');} }
+        async function toggleService(serviceId, isActive) {
+            try { await fetch(`https://carcareconnect-backend.onrender.com/api/admin/services/${serviceId}/status`,{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({isActive:!isActive})}); alert(`Service ${!isActive?'activated':'hidden'}`); await fetchAll(); loadTab(currentTab); } catch(e){alert('Error');} }
+
+        function filterRoleChange() { filterRole = document.getElementById('roleFilter').value; renderUsers(); }
+        function filterSearch() { searchTerm = document.getElementById('searchInput').value; renderUsers(); }
+        function filterStatusChange() { filterStatus = document.getElementById('statusFilter').value; renderBookings(); }
+
+        async function loadTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.menu-item').forEach(el=>el.classList.remove('active'));
+            document.querySelector(`.menu-item[data-tab="${tab}"]`).classList.add('active');
+            document.getElementById('pageTitle').innerText = tab.charAt(0).toUpperCase() + tab.slice(1);
+            await fetchAll();
+            if(tab==='dashboard') renderDashboard();
+            else if(tab==='users') renderUsers();
+            else if(tab==='providers') renderProviders();
+            else if(tab==='drivers') renderDrivers();
+            else if(tab==='bookings') renderBookings();
+            else if(tab==='services') renderServices();
+            else if(tab==='revenue') renderRevenue();
+            else if(tab==='payouts') renderPayouts();
+            else if(tab==='refunds') renderRefunds();
+            else if(tab==='reviews') renderReviews();
+            else if(tab==='promos') renderPromos();
+            else if(tab==='loyalty') renderLoyalty();
+        }
+
+        function logout() {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUser');
+            location.reload();
+        }
+
+        document.querySelectorAll('.menu-item').forEach(el=>el.addEventListener('click',()=>loadTab(el.dataset.tab)));
+    </script>
+</body>
+</html>

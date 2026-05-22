@@ -20,7 +20,7 @@ function PromoCodeInput({ amount, onDiscountApplied, bookingId }) {
     
     try {
       // First validate the promo code
-      const validateRes = await fetch('https://carcareconnect-backend.onrender.com/api/promo/validate', {
+      const validateRes = await fetch('http://localhost:5000/api/promo/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -41,7 +41,7 @@ function PromoCodeInput({ amount, onDiscountApplied, bookingId }) {
       
       // Apply to booking if bookingId exists
       if (bookingId) {
-        const applyRes = await fetch('https://carcareconnect-backend.onrender.com/api/promo/apply', {
+        const applyRes = await fetch('http://localhost:5000/api/promo/apply', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

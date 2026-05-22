@@ -1,44 +1,75 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middlewares/auth');
-const {
-  getCustomerDashboard,
-  updateProfile,
-  updateSettings,
-  markNotificationRead,
-  markAllNotificationsRead,
-  getLoyaltyInfo,
-  getVehicleReminders,
-  getFavoriteProviders,
-  addFavoriteProvider,
-  removeFavoriteProvider
-} = require('../controllers/customerController');
 
-// All customer routes require authentication
-router.use(protect);
+// Get customer vehicles
+router.get('/vehicles', protect, async (req, res) => {
+  try {
+    const Vehicle = require('../models/Vehicle');
+    const vehicles = await Vehicle.find({ customerId: req.user.id });
+    res.json({ success: true, vehicles });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get vehicles' });
+  }
+});
 
-// Dashboard
-router.get('/dashboard', getCustomerDashboard);
+// Add customer vehicle
+router.post('/vehicles', protect, async (req, res) => {
+  try {
+    const Vehicle = require('../models/Vehicle');
+    const { make, model, year, licensePlate, color } = req.body;
+    const vehicle = await Vehicle.create({
+      customerId: req.user.id,
+      make, model, year, licensePlate, color
+    });
+    res.json({ success: true, vehicle });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to add vehicle' });
+  }
+});
 
-// Profile
-router.put('/profile', updateProfile);
+// Delete customer vehicle
+router.delete('/vehicles/:id', protect, async (req, res) => {
+  try {
+    const Vehicle = require('../models/Vehicle');
+    await Vehicle.findOneAndDelete({ _id: req.params.id, customerId: req.user.id });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete vehicle' });
+  }
+});
 
-// Settings
-router.put('/settings', updateSettings);
-
-// Notifications
-router.put('/notifications/:id/read', markNotificationRead);
-router.put('/notifications/read-all', markAllNotificationsRead);
-
-// Loyalty
-router.get('/loyalty', getLoyaltyInfo);
-
-// Vehicles
-router.get('/vehicles/reminders', getVehicleReminders);
-
-// Favorite providers
-router.get('/favorites', getFavoriteProviders);
-router.post('/favorites', addFavoriteProvider);
-router.delete('/favorites/:providerId', removeFavoriteProvider);
+// Update customer profile - FIXED to save phone
+router.put('/profile', protect, async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const { firstName, lastName, email, phone, address } = req.body;
+    
+    console.log('Updating customer profile:', { firstName, lastName, email, phone, address });
+    
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { firstName, lastName, email, phone, address },
+      { new: true }
+    ).select('-password');
+    
+    console.log('Customer updated - Phone saved:', user.phone);
+    
+    res.json({ 
+      success: true, 
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone,
+        address: user.address
+      }
+    });
+  } catch (error) {
+    console.error('Update customer error:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
 
 module.exports = router;

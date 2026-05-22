@@ -13,7 +13,7 @@ function ReviewModal({ booking, onClose, onSuccess }) {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/reviews/submit', {
+      const res = await fetch('http://localhost:5000/api/reviews/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

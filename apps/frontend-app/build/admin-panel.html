@@ -1,0 +1,1713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Care Connect - Admin Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        /* Admin Container */
+        .admin-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background-color: #ffffff;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+            transition: width 0.3s ease;
+            z-index: 100;
+        }
+
+        .sidebar.collapsed {
+            width: 80px;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-header .logo {
+            display: flex;
+            align-items: center;
+        }
+
+        .sidebar-header .logo-icon {
+            font-size: 28px;
+        }
+
+        .sidebar-header .logo-text {
+            font-size: 18px;
+            font-weight: bold;
+            margin-left: 10px;
+            color: #1f2937;
+        }
+
+        .sidebar.collapsed .logo-text {
+            display: none;
+        }
+
+        .collapse-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            color: #6b7280;
+        }
+
+        .sidebar.collapsed .collapse-btn {
+            display: none;
+        }
+
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 24px;
+            margin: 4px 8px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #6b7280;
+        }
+
+        .sidebar.collapsed .menu-item {
+            justify-content: center;
+            padding: 12px 0;
+        }
+
+        .menu-item:hover {
+            background-color: #f3f4f6;
+            color: #8b5cf6;
+        }
+
+        .menu-item.active {
+            background-color: #f3f4f6;
+            color: #8b5cf6;
+            border-left: 3px solid #8b5cf6;
+        }
+
+        .menu-icon {
+            font-size: 20px;
+        }
+
+        .menu-label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .sidebar.collapsed .menu-label {
+            display: none;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            transition: margin-left 0.3s ease;
+        }
+
+        .sidebar.collapsed ~ .main-content {
+            margin-left: 80px;
+        }
+
+        /* Top Header */
+        .top-header {
+            background-color: #ffffff;
+            padding: 16px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e5e7eb;
+            position: sticky;
+            top: 0;
+            z-index: 99;
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1f2937;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .ws-badge {
+            background-color: #10b981;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .ws-badge.offline {
+            background-color: #ef4444;
+        }
+
+        .online-dot {
+            width: 8px;
+            height: 8px;
+            background-color: white;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            background-color: #f3f4f6;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #8b5cf6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+        }
+
+        .user-name {
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .logout-btn {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        /* Content Area */
+        .content-area {
+            padding: 24px 30px;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background-color: #ffffff;
+            padding: 16px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-icon {
+            font-size: 32px;
+        }
+
+        .stat-info {
+            flex: 1;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #8b5cf6;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        /* Online Card */
+        .online-card {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #374151;
+        }
+
+        .driver-list {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .driver-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #f3f4f6;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #374151;
+        }
+
+        /* Activity Card */
+        .activity-card {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .activity-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #374151;
+        }
+
+        /* Revenue Grid */
+        .revenue-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .revenue-card {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .revenue-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #8b5cf6;
+        }
+
+        /* Table Card */
+        .table-card {
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e5e7eb;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .table-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #374151;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-select, .filter-input {
+            padding: 6px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .filter-input {
+            width: 200px;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 13px;
+        }
+
+        th {
+            background-color: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        td {
+            color: #6b7280;
+        }
+
+        /* Buttons */
+        .action-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .btn-sm {
+            padding: 4px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .btn-danger {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        .btn-success {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .btn-purple {
+            background-color: #8b5cf6;
+            color: white;
+        }
+
+        .btn-primary {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        .btn-warning {
+            background-color: #f59e0b;
+            color: white;
+        }
+
+        .invoice-btn {
+            background-color: #8b5cf6;
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        /* Badges */
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .badge-pending {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-confirmed {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-progress {
+            background-color: #e0e7ff;
+            color: #4338ca;
+        }
+
+        .badge-completed {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-cancelled {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Chart Container */
+        .chart-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            height: 200px;
+            padding: 20px;
+            gap: 10px;
+        }
+
+        .chart-bar {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            width: 60px;
+        }
+
+        .bar-fill {
+            width: 30px;
+            background-color: #8b5cf6;
+            border-radius: 4px;
+            transition: height 0.3s;
+        }
+
+        .bar-fill-small {
+            width: 30px;
+            background-color: #f59e0b;
+            border-radius: 4px;
+            transition: height 0.3s;
+            margin-top: 2px;
+        }
+
+        /* Pending Items */
+        .pending-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 16px;
+        }
+
+        .modal-content input, .modal-content select, .modal-content textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 16px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #6b7280;
+        }
+
+        /* Dark Mode */
+        body.dark {
+            background-color: #0f172a;
+        }
+
+        body.dark .sidebar {
+            background-color: #1e293b;
+        }
+
+        body.dark .sidebar-header .logo-text {
+            color: white;
+        }
+
+        body.dark .menu-item {
+            color: #94a3b8;
+        }
+
+        body.dark .menu-item:hover,
+        body.dark .menu-item.active {
+            background-color: #334155;
+            color: white;
+        }
+
+        body.dark .top-header,
+        body.dark .stat-card,
+        body.dark .online-card,
+        body.dark .activity-card,
+        body.dark .revenue-card,
+        body.dark .table-card {
+            background-color: #1e293b;
+        }
+
+        body.dark .header-title,
+        body.dark .card-title,
+        body.dark .table-title {
+            color: white;
+        }
+
+        body.dark th {
+            background-color: #334155;
+            color: white;
+        }
+
+        body.dark td {
+            color: #cbd5e1;
+            border-bottom-color: #334155;
+        }
+
+        body.dark .driver-item {
+            background-color: #334155;
+            color: white;
+        }
+
+        body.dark .theme-toggle {
+            background-color: #334155;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">👑</span>
+                    <span class="logo-text">Car Care</span>
+                </div>
+                <button class="collapse-btn" onclick="toggleSidebar()">←</button>
+            </div>
+            <div class="sidebar-menu" id="sidebarMenu">
+                <div class="menu-item active" data-tab="dashboard">
+                    <span class="menu-icon">📊</span>
+                    <span class="menu-label">Dashboard</span>
+                </div>
+                <div class="menu-item" data-tab="users">
+                    <span class="menu-icon">👥</span>
+                    <span class="menu-label">Users</span>
+                </div>
+                <div class="menu-item" data-tab="providers">
+                    <span class="menu-icon">🔧</span>
+                    <span class="menu-label">Providers</span>
+                </div>
+                <div class="menu-item" data-tab="drivers">
+                    <span class="menu-icon">🚗</span>
+                    <span class="menu-label">Drivers</span>
+                </div>
+                <div class="menu-item" data-tab="bookings">
+                    <span class="menu-icon">📅</span>
+                    <span class="menu-label">Bookings</span>
+                </div>
+                <div class="menu-item" data-tab="services">
+                    <span class="menu-icon">🛠️</span>
+                    <span class="menu-label">Services</span>
+                </div>
+                <div class="menu-item" data-tab="revenue">
+                    <span class="menu-icon">💰</span>
+                    <span class="menu-label">Revenue</span>
+                </div>
+                <div class="menu-item" data-tab="payouts">
+                    <span class="menu-icon">💸</span>
+                    <span class="menu-label">Payouts</span>
+                </div>
+                <div class="menu-item" data-tab="refunds">
+                    <span class="menu-icon">🔄</span>
+                    <span class="menu-label">Refunds</span>
+                </div>
+                <div class="menu-item" data-tab="reviews">
+                    <span class="menu-icon">⭐</span>
+                    <span class="menu-label">Reviews</span>
+                </div>
+                <div class="menu-item" data-tab="promos">
+                    <span class="menu-icon">🎟️</span>
+                    <span class="menu-label">Promo Codes</span>
+                </div>
+                <div class="menu-item" data-tab="loyalty">
+                    <span class="menu-icon">💎</span>
+                    <span class="menu-label">Loyalty</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content" id="mainContent">
+            <div class="top-header">
+                <h1 class="header-title" id="pageTitle">Dashboard</h1>
+                <div class="header-right">
+                    <div class="ws-badge" id="wsBadge">
+                        <span class="online-dot"></span>
+                        <span id="wsStatus">Live</span>
+                    </div>
+                    <button class="theme-toggle" onclick="toggleDarkMode()">🌙</button>
+                    <div class="user-info">
+                        <div class="avatar">A</div>
+                        <div>
+                            <div class="user-name">Administrator</div>
+                            <div style="font-size: 11px; color: #8b5cf6;">Founder</div>
+                        </div>
+                        <button class="logout-btn" onclick="logout()">Logout</button>
+                    </div>
+                </div>
+            </div>
+            <div class="content-area" id="content">
+                <div class="loading">Loading dashboard...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Refund Modal -->
+    <div id="refundModal" class="modal">
+        <div class="modal-content">
+            <h3>Review Refund Request</h3>
+            <div id="refundDetails"></div>
+            <textarea id="adminNotes" placeholder="Admin notes (optional)" rows="3"></textarea>
+            <div class="modal-actions">
+                <button class="btn-sm btn-success" onclick="approveRefund()">Approve Refund</button>
+                <button class="btn-sm btn-danger" onclick="showRejectReason()">Reject</button>
+                <button class="btn-sm" onclick="closeModal('refundModal')">Cancel</button>
+            </div>
+            <div id="rejectSection" style="display: none; margin-top: 16px;">
+                <textarea id="rejectionReason" placeholder="Rejection reason *" rows="2"></textarea>
+                <button class="btn-sm btn-danger" onclick="rejectRefund()">Confirm Rejection</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Promo Modal -->
+    <div id="promoModal" class="modal">
+        <div class="modal-content">
+            <h3>Create Promo Code</h3>
+            <input type="text" id="promoCode" placeholder="Code (e.g., WELCOME20)">
+            <input type="text" id="promoDesc" placeholder="Description">
+            <select id="promoType">
+                <option value="percentage">Percentage (%)</option>
+                <option value="fixed">Fixed Amount ($)</option>
+            </select>
+            <input type="number" id="promoValue" placeholder="Discount Value">
+            <input type="number" id="promoMinPurchase" placeholder="Minimum Purchase (optional)">
+            <input type="number" id="promoLimit" placeholder="Usage Limit" value="1">
+            <input type="date" id="promoValidUntil">
+            <div class="modal-actions">
+                <button class="btn-sm btn-success" onclick="createPromoCode()">Create</button>
+                <button class="btn-sm" onclick="closeModal('promoModal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let token = localStorage.getItem('adminToken');
+        let currentTab = 'dashboard';
+        let allUsers = [], allBookings = [], allServices = [], allRefunds = [], allReviews = [], allPromoCodes = [], allLoyalty = [], paymentAnalytics = { monthlyRevenue: [], recentTransactions: [] };
+        let pendingPayouts = { providerPayouts: [], driverPayouts: [] };
+        let filterRole = 'all', filterStatus = 'all', searchTerm = '';
+        let onlineUsers = { drivers: [] };
+        let liveActivity = [];
+        let isConnected = true;
+        let darkMode = false;
+        let sidebarCollapsed = false;
+        let selectedRefund = null;
+        let stats = {
+            users: { total: 0, customers: 0, providers: 0, drivers: 0 },
+            bookings: { total: 0, completed: 0, pending: 0, cancelled: 0, weekly: 0 },
+            payments: { totalRevenue: 0, totalCommission: 0, totalProviderPayouts: 0, totalDriverPayouts: 0 },
+            platform: { rating: 4.8 }
+        };
+
+        if (!token) {
+            window.location.href = '/admin-login.html';
+        }
+
+        // Toggle functions
+        function toggleSidebar() {
+            sidebarCollapsed = !sidebarCollapsed;
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            if (sidebarCollapsed) {
+                sidebar.classList.add('collapsed');
+                mainContent.style.marginLeft = '80px';
+            } else {
+                sidebar.classList.remove('collapsed');
+                mainContent.style.marginLeft = '280px';
+            }
+        }
+
+        function toggleDarkMode() {
+            darkMode = !darkMode;
+            document.body.classList.toggle('dark', darkMode);
+            const themeBtn = document.querySelector('.theme-toggle');
+            themeBtn.innerHTML = darkMode ? '☀️' : '🌙';
+        }
+
+        // Fetch functions
+        async function fetchAllData() {
+            await Promise.all([
+                fetchStats(),
+                fetchUsers(),
+                fetchBookings(),
+                fetchServices(),
+                fetchPaymentAnalytics(),
+                fetchPendingPayouts(),
+                fetchRefunds(),
+                fetchAllReviews(),
+                fetchPromoCodes(),
+                fetchLoyaltyLeaderboard(),
+                fetchOnlineDrivers()
+            ]);
+        }
+
+        async function fetchStats() {
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/stats', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.success) stats = data.stats;
+            } catch (err) { console.error(err); }
+        }
+
+        async function fetchUsers() {
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/users', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.success) allUsers = data.users;
+            } catch (err) { console.error(err); }
+        }
+
+        async function fetchBookings() {
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/bookings', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.success) allBookings = data.bookings;
+            } catch (err) { console.error(err); }
+        }
+
+        async function fetchServices() {
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/services', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.success) allServices = data.services;
+            } catch (err) { console.error(err); }
+        }
+
+        async function fetchPaymentAnalytics() {
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/payment-analytics', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.success) paymentAnalytics = data.analytics;
+            } catch (err) { console.error(err); }
+        }
+
+        async function fetchPendingPayouts() {
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/pending-payouts', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.success) pendingPayouts = data;
+            } catch (err) { console.error(err); }
+        }
+
+        async function fetchRefunds() {
+            try {
+                const res = await fetch('http://localhost:5000/api/refunds/all', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.success) allRefunds = data.refunds;
+            } catch (err) { console.error(err); }
+        }
+
+        async function fetchAllReviews() {
+            try {
+                const res = await fetch('http://localhost:5000/api/reviews/all', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.success) allReviews = data.reviews;
+            } catch (err) { console.error(err); }
+        }
+
+        async function fetchPromoCodes() {
+            try {
+                const res = await fetch('http://localhost:5000/api/promo/all', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.success) allPromoCodes = data.promoCodes;
+            } catch (err) { console.error(err); }
+        }
+
+        async function fetchLoyaltyLeaderboard() {
+            try {
+                const res = await fetch('http://localhost:5000/api/loyalty/leaderboard');
+                const data = await res.json();
+                if (data.success) allLoyalty = data.leaderboard;
+            } catch (err) { console.error(err); }
+        }
+
+        async function fetchOnlineDrivers() {
+            try {
+                const res = await fetch('http://localhost:5000/api/driver/online');
+                const data = await res.json();
+                if (data.success) onlineUsers.drivers = data.drivers || [];
+            } catch (err) { console.error(err); }
+        }
+
+        function getRoleBadge(role) {
+            const config = {
+                customer: { bg: '#d1fae5', color: '#065f46', icon: '👤', label: 'Customer' },
+                provider: { bg: '#e0e7ff', color: '#4338ca', icon: '🔧', label: 'Provider' },
+                driver: { bg: '#fef3c7', color: '#92400e', icon: '🚗', label: 'Driver' },
+                admin: { bg: '#f3e8ff', color: '#7c3aed', icon: '👑', label: 'Admin' }
+            };
+            const c = config[role] || { bg: '#f3f4f6', color: '#6b7280', icon: '❓', label: role };
+            return `<span style="background-color: ${c.bg}; color: ${c.color}; padding: 4px 10px; border-radius: 20px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">${c.icon} ${c.label}</span>`;
+        }
+
+        function getStatusBadge(status) {
+            const config = {
+                pending: { bg: '#fef3c7', color: '#92400e', icon: '⏳', label: 'Pending' },
+                confirmed: { bg: '#d1fae5', color: '#065f46', icon: '✅', label: 'Confirmed' },
+                'in-progress': { bg: '#e0e7ff', color: '#4338ca', icon: '🔧', label: 'In Progress' },
+                completed: { bg: '#d1fae5', color: '#065f46', icon: '✔️', label: 'Completed' },
+                cancelled: { bg: '#fee2e2', color: '#991b1b', icon: '❌', label: 'Cancelled' }
+            };
+            const c = config[status] || { bg: '#f3f4f6', color: '#6b7280', icon: '📌', label: status };
+            return `<span class="badge" style="background-color: ${c.bg}; color: ${c.color};">${c.icon} ${c.label}</span>`;
+        }
+
+        function getStripeBadge(status) {
+            if (!status) return '<span style="background-color: #f3f4f6; color: #6b7280; padding: 4px 8px; border-radius: 20px; font-size: 11px;">Not Connected</span>';
+            if (status === 'active') return '<span style="background-color: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 20px; font-size: 11px;">Connected</span>';
+            if (status === 'pending') return '<span style="background-color: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 20px; font-size: 11px;">Pending</span>';
+            return '<span style="background-color: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 20px; font-size: 11px;">Rejected</span>';
+        }
+
+        async function updateUserStatus(userId, activate) {
+            try {
+                await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ isActive: activate })
+                });
+                alert(`User ${activate ? 'activated' : 'suspended'}`);
+                await fetchUsers();
+                loadTab(currentTab);
+            } catch (err) { alert('Error updating user'); }
+        }
+
+        async function verifyUser(userId, role) {
+            try {
+                await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ isVerified: true })
+                });
+                alert(`${role} verified!`);
+                await fetchUsers();
+                loadTab(currentTab);
+            } catch (err) { alert('Error verifying user'); }
+        }
+
+        async function deleteUser(userId, name) {
+            if (confirm(`Delete ${name}? This cannot be undone.`)) {
+                try {
+                    await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    alert('User deleted');
+                    await fetchUsers();
+                    loadTab(currentTab);
+                } catch (err) { alert('Error deleting user'); }
+            }
+        }
+
+        async function toggleService(serviceId, isActive) {
+            try {
+                await fetch(`http://localhost:5000/api/admin/services/${serviceId}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ isActive: !isActive })
+                });
+                alert(`Service ${!isActive ? 'activated' : 'hidden'}`);
+                await fetchServices();
+                loadTab(currentTab);
+            } catch (err) { alert('Error updating service'); }
+        }
+
+        async function processPayout(userId, type) {
+            if (confirm(`Process ${type} payout?`)) {
+                try {
+                    await fetch('http://localhost:5000/api/admin/process-payout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ userId, type })
+                    });
+                    alert('Payout processed');
+                    await fetchPendingPayouts();
+                    loadTab(currentTab);
+                } catch (err) { alert('Error processing payout'); }
+            }
+        }
+
+        async function hideReview(reviewId) {
+            if (confirm('Hide this review?')) {
+                try {
+                    await fetch(`http://localhost:5000/api/reviews/hide/${reviewId}`, {
+                        method: 'PUT',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    alert('Review hidden');
+                    await fetchAllReviews();
+                    loadTab(currentTab);
+                } catch (err) { alert('Error hiding review'); }
+            }
+        }
+
+        async function createPromoCode() {
+            const code = document.getElementById('promoCode').value.toUpperCase();
+            const description = document.getElementById('promoDesc').value;
+            const discountType = document.getElementById('promoType').value;
+            const discountValue = parseFloat(document.getElementById('promoValue').value);
+            const minPurchase = parseFloat(document.getElementById('promoMinPurchase').value) || 0;
+            const usageLimit = parseInt(document.getElementById('promoLimit').value) || 1;
+            const validUntil = document.getElementById('promoValidUntil').value;
+            
+            if (!code || !discountValue) { alert('Code and discount value required'); return; }
+            
+            try {
+                const res = await fetch('http://localhost:5000/api/promo/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ code, description, discountType, discountValue, minPurchase, usageLimit, validUntil })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('Promo code created!');
+                    closeModal('promoModal');
+                    await fetchPromoCodes();
+                    loadTab(currentTab);
+                } else alert(data.error || 'Failed to create');
+            } catch (err) { alert('Error creating promo code'); }
+        }
+
+        async function deletePromoCode(id, code) {
+            if (confirm(`Delete promo code "${code}"?`)) {
+                try {
+                    await fetch(`http://localhost:5000/api/promo/${id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    alert('Promo code deleted');
+                    await fetchPromoCodes();
+                    loadTab(currentTab);
+                } catch (err) { alert('Error deleting promo code'); }
+            }
+        }
+
+        async function downloadInvoice(transactionId) {
+            try {
+                const res = await fetch(`http://localhost:5000/api/invoices/download/${transactionId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    window.open(url, '_blank');
+                    setTimeout(() => URL.revokeObjectURL(url), 100);
+                } else alert('Failed to download invoice');
+            } catch (err) { alert('Error downloading invoice'); }
+        }
+
+        function openRefundModal(refund) {
+            selectedRefund = refund;
+            document.getElementById('refundDetails').innerHTML = `
+                <p><strong>Customer:</strong> ${refund.customerId?.firstName || '-'} ${refund.customerId?.lastName || ''}</p>
+                <p><strong>Email:</strong> ${refund.customerId?.email || '-'}</p>
+                <p><strong>Service:</strong> ${refund.bookingId?.serviceName || '-'}</p>
+                <p><strong>Amount:</strong> $${refund.amount || 0}</p>
+                <p><strong>Reason:</strong> ${refund.reason || '-'}</p>
+            `;
+            document.getElementById('adminNotes').value = '';
+            document.getElementById('rejectSection').style.display = 'none';
+            document.getElementById('refundModal').classList.add('active');
+        }
+
+        function showRejectReason() {
+            document.getElementById('rejectSection').style.display = 'block';
+        }
+
+        async function approveRefund() {
+            const notes = document.getElementById('adminNotes').value;
+            try {
+                const res = await fetch(`http://localhost:5000/api/refunds/${selectedRefund._id}/approve`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ adminNotes: notes })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('Refund approved!');
+                    closeModal('refundModal');
+                    await fetchRefunds();
+                    loadTab(currentTab);
+                } else alert(data.error || 'Failed to approve');
+            } catch (err) { alert('Error approving refund'); }
+        }
+
+        async function rejectRefund() {
+            const reason = document.getElementById('rejectionReason').value;
+            if (!reason) { alert('Please provide a rejection reason'); return; }
+            try {
+                const res = await fetch(`http://localhost:5000/api/refunds/${selectedRefund._id}/reject`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ rejectionReason: reason })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('Refund rejected');
+                    closeModal('refundModal');
+                    await fetchRefunds();
+                    loadTab(currentTab);
+                } else alert(data.error || 'Failed to reject');
+            } catch (err) { alert('Error rejecting refund'); }
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+            selectedRefund = null;
+        }
+
+        function openPromoModal() {
+            document.getElementById('promoModal').classList.add('active');
+        }
+
+        function filterRoleChange() {
+            filterRole = document.getElementById('roleFilter').value;
+            renderUsers();
+        }
+
+        function filterSearch() {
+            searchTerm = document.getElementById('searchInput').value;
+            renderUsers();
+        }
+
+        function filterStatusChange() {
+            filterStatus = document.getElementById('statusFilter').value;
+            renderBookings();
+        }
+
+        function filterBookingSearch() {
+            searchTerm = document.getElementById('bookingSearch').value;
+            renderBookings();
+        }
+
+        let maxRevenue = 1000;
+        let pendingRefunds = 0;
+
+        function renderDashboard() {
+            const totalRevenue = stats.payments?.totalRevenue || 0;
+            const totalCommission = stats.payments?.totalCommission || 0;
+            const totalUsers = stats.users?.total || allUsers.length;
+            const totalCustomers = stats.users?.customers || allUsers.filter(u => u.role === 'customer').length;
+            const totalProviders = stats.users?.providers || allUsers.filter(u => u.role === 'provider').length;
+            const totalDrivers = stats.users?.drivers || allUsers.filter(u => u.role === 'driver').length;
+            const totalBookings = stats.bookings?.total || allBookings.length;
+            const completedBookings = stats.bookings?.completed || allBookings.filter(b => b.status === 'completed').length;
+            const pendingBookingsCount = stats.bookings?.pending || allBookings.filter(b => b.status === 'pending').length;
+            const weeklyBookings = stats.bookings?.weekly || 0;
+            const avgRating = stats.platform?.rating || 4.8;
+
+            const monthlyRevenue = paymentAnalytics.monthlyRevenue || [];
+            maxRevenue = Math.max(...monthlyRevenue.map(m => m.revenue), 1);
+
+            let html = `
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-info"><div class="stat-value">$${totalRevenue.toLocaleString()}</div><div class="stat-label">Total Revenue</div></div></div>
+                    <div class="stat-card"><div class="stat-icon">🏦</div><div class="stat-info"><div class="stat-value">$${totalCommission.toLocaleString()}</div><div class="stat-label">Platform Fee</div></div></div>
+                    <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-info"><div class="stat-value">${totalUsers}</div><div class="stat-label">Total Users</div></div></div>
+                    <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-info"><div class="stat-value">${totalBookings}</div><div class="stat-label">Bookings</div></div></div>
+                    <div class="stat-card"><div class="stat-icon">🔧</div><div class="stat-info"><div class="stat-value">${totalProviders}</div><div class="stat-label">Providers</div></div></div>
+                    <div class="stat-card"><div class="stat-icon">🚗</div><div class="stat-info"><div class="stat-value">${totalDrivers}</div><div class="stat-label">Drivers</div></div></div>
+                </div>
+                <div class="online-card">
+                    <div class="card-title"><span>REAL-TIME ONLINE USERS</span><span class="online-dot" style="margin-left: 8px;"></span><span style="font-size: 11px; font-weight: normal; color: #6b7280;"> Live updates</span></div>
+                    <div><strong>Drivers Online:</strong> ${onlineUsers.drivers.length}</div>
+                    <div class="driver-list">
+                        ${onlineUsers.drivers.length === 0 ? '<span style="font-size: 12px; color: #6b7280;">No drivers online</span>' : onlineUsers.drivers.map(d => `<div class="driver-item"><span class="online-dot" style="width: 8px; height: 8px;"></span> ${d.name || d.firstName || 'Driver'}<span style="font-size: 10px; color: #6b7280;"> Active</span></div>`).join('')}
+                    </div>
+                </div>
+                <div class="activity-card">
+                    <div class="card-title"><span>LIVE ACTIVITY FEED</span><span style="font-size: 11px; font-weight: normal; color: #6b7280;"> Real-time platform events</span></div>
+                    ${liveActivity.length === 0 ? '<div style="text-align: center; color: #6b7280; padding: 20px;">Waiting for activity...</div>' : liveActivity.map(a => `<div class="activity-item"><span>${a.type === 'driver_status' ? '🚗' : a.type === 'booking_status' ? '📅' : '🔔'}</span><span>${a.message}</span><span style="font-size: 10px; color: #9ca3af;">${new Date(a.timestamp).toLocaleTimeString()}</span></div>`).join('')}
+                </div>
+                <div class="revenue-grid">
+                    <div class="revenue-card"><div style="font-size: 24px; margin-bottom: 8px;">📊</div><div>Weekly Bookings</div><div class="revenue-value">${weeklyBookings}</div></div>
+                    <div class="revenue-card"><div style="font-size: 24px; margin-bottom: 8px;">✅</div><div>Completed</div><div class="revenue-value">${completedBookings}</div></div>
+                    <div class="revenue-card"><div style="font-size: 24px; margin-bottom: 8px;">⏳</div><div>Pending</div><div class="revenue-value">${pendingBookingsCount}</div></div>
+                    <div class="revenue-card"><div style="font-size: 24px; margin-bottom: 8px;">⭐</div><div>Avg Rating</div><div class="revenue-value">${avgRating}</div></div>
+                </div>
+                <div class="table-card">
+                    <div class="table-header"><div class="table-title">Monthly Revenue Chart</div></div>
+                    <div class="chart-container">
+                        ${monthlyRevenue.map(m => `
+                            <div class="chart-bar">
+                                <div class="bar-fill" style="height: ${(m.revenue / maxRevenue) * 150}px;"></div>
+                                <div class="bar-fill-small" style="height: ${(m.commission / maxRevenue) * 150}px;"></div>
+                                <span style="font-size: 11px;">${m.month}</span>
+                                <small style="font-size: 10px; color: #6b7280;">$${m.revenue?.toLocaleString() || 0}</small>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderUsers() {
+            let filtered = allUsers.filter(u => {
+                if (filterRole !== 'all' && u.role !== filterRole) return false;
+                if (searchTerm && !u.email.toLowerCase().includes(searchTerm.toLowerCase()) && !(u.firstName || '').toLowerCase().includes(searchTerm.toLowerCase())) return false;
+                return true;
+            });
+            let html = `
+                <div class="table-card">
+                    <div class="table-header">
+                        <div class="table-title">User Management</div>
+                        <div class="filters">
+                            <select class="filter-select" id="roleFilter" onchange="filterRoleChange()">
+                                <option value="all">All Roles</option>
+                                <option value="customer">Customers</option>
+                                <option value="provider">Providers</option>
+                                <option value="driver">Drivers</option>
+                            </select>
+                            <input type="text" class="filter-input" id="searchInput" placeholder="Search..." onkeyup="filterSearch()">
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Stripe</th><th>Status</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                ${filtered.map(u => `
+                                    <tr>
+                                        <td><strong>${u.firstName || ''} ${u.lastName || ''}</strong>${u.businessName ? `<div style="font-size: 11px; color: #6b7280;">${u.businessName}</div>` : ''}</td>
+                                        <td>${u.email}</td>
+                                        <td>${getRoleBadge(u.role)}</td>
+                                        <td>${u.role === 'provider' || u.role === 'driver' ? getStripeBadge(u.stripeAccountStatus) : '<span style="color: #9ca3af;">—</span>'}</td>
+                                        <td><span style="color: ${u.isActive ? '#10b981' : '#ef4444'}">${u.isActive ? 'Active' : 'Suspended'}</span></td>
+                                        <td>
+                                            <div class="action-group">
+                                                ${u.isActive ? `<button class="btn-sm btn-danger" onclick="updateUserStatus('${u._id}', false)">Suspend</button>` : `<button class="btn-sm btn-success" onclick="updateUserStatus('${u._id}', true)">Activate</button>`}
+                                                ${(u.role === 'provider' || u.role === 'driver') && !u.isVerified ? `<button class="btn-sm btn-purple" onclick="verifyUser('${u._id}', '${u.role}')">Verify</button>` : ''}
+                                                <button class="btn-sm btn-danger" onclick="deleteUser('${u._id}', '${u.firstName} ${u.lastName}')">Delete</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+            if (document.getElementById('roleFilter')) document.getElementById('roleFilter').value = filterRole;
+            if (document.getElementById('searchInput')) document.getElementById('searchInput').value = searchTerm;
+        }
+
+        function renderProviders() {
+            let providers = allUsers.filter(u => u.role === 'provider');
+            let html = `
+                <div class="table-card">
+                    <div class="table-header"><div class="table-title">Provider Management</div></div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead><tr><th>Business</th><th>Owner</th><th>Email</th><th>Stripe</th><th>Status</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                ${providers.map(p => `
+                                    <tr>
+                                        <td><strong>${p.businessName || p.firstName}</strong></td>
+                                        <td>${p.firstName || ''} ${p.lastName || ''}</td>
+                                        <td>${p.email}</td>
+                                        <td>${getStripeBadge(p.stripeAccountStatus)}</td>
+                                        <td><span style="color: ${p.isVerified ? '#10b981' : '#f59e0b'}">${p.isVerified ? 'Verified' : 'Pending'}</span></td>
+                                        <td>
+                                            <div class="action-group">
+                                                ${!p.isVerified ? `<button class="btn-sm btn-purple" onclick="verifyUser('${p._id}', 'Provider')">Verify</button>` : ''}
+                                                ${p.isActive ? `<button class="btn-sm btn-danger" onclick="updateUserStatus('${p._id}', false)">Suspend</button>` : `<button class="btn-sm btn-success" onclick="updateUserStatus('${p._id}', true)">Activate</button>`}
+                                                <button class="btn-sm btn-danger" onclick="deleteUser('${p._id}', '${p.businessName || p.firstName}')">Delete</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderDrivers() {
+            let drivers = allUsers.filter(u => u.role === 'driver');
+            let html = `
+                <div class="table-card">
+                    <div class="table-header"><div class="table-title">Driver Management</div></div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead><tr><th>Name</th><th>Email</th><th>Vehicle</th><th>Stripe</th><th>Status</th><th>Online</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                ${drivers.map(d => {
+                                    const isOnline = onlineUsers.drivers.some(drv => drv.id === d._id || drv.driverId === d._id);
+                                    return `
+                                        <tr>
+                                            <td>${d.firstName || ''} ${d.lastName || ''}</td>
+                                            <td>${d.email}</td>
+                                            <td>${d.vehicleModel || 'N/A'}</td>
+                                            <td>${getStripeBadge(d.stripeAccountStatus)}</td>
+                                            <td><span style="color: ${d.isVerified ? '#10b981' : '#f59e0b'}">${d.isVerified ? 'Verified' : 'Pending'}</span></td>
+                                            <td><span style="display: flex; align-items: center; gap: 5px;"><span style="width: 8px; height: 8px; background-color: ${isOnline ? '#10b981' : '#6b7280'}; border-radius: 50%; display: inline-block;"></span>${isOnline ? 'Online' : 'Offline'}</span></td>
+                                            <td>
+                                                <div class="action-group">
+                                                    ${!d.isVerified ? `<button class="btn-sm btn-purple" onclick="verifyUser('${d._id}', 'Driver')">Verify</button>` : ''}
+                                                    ${d.isActive ? `<button class="btn-sm btn-danger" onclick="updateUserStatus('${d._id}', false)">Suspend</button>` : `<button class="btn-sm btn-success" onclick="updateUserStatus('${d._id}', true)">Activate</button>`}
+                                                    <button class="btn-sm btn-danger" onclick="deleteUser('${d._id}', '${d.firstName} ${d.lastName}')">Delete</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderBookings() {
+            let filtered = allBookings.filter(b => filterStatus === 'all' || b.status === filterStatus);
+            let html = `
+                <div class="table-card">
+                    <div class="table-header">
+                        <div class="table-title">All Bookings</div>
+                        <div class="filters">
+                            <select class="filter-select" id="statusFilter" onchange="filterStatusChange()">
+                                <option value="all">All</option>
+                                <option value="pending">Pending</option>
+                                <option value="confirmed">Confirmed</option>
+                                <option value="completed">Completed</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                            <input type="text" class="filter-input" id="bookingSearch" placeholder="Search..." onkeyup="filterBookingSearch()">
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead><tr><th>Service</th><th>Customer</th><th>Provider</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
+                            <tbody>
+                                ${filtered.map(b => `
+                                    <tr>
+                                        <td>${b.serviceName || '-'}</td>
+                                        <td>${b.customerId?.firstName || ''} ${b.customerId?.lastName || ''}</td>
+                                        <td>${b.providerId?.businessName || b.providerId?.firstName || '-'}</td>
+                                        <td>${new Date(b.bookingDate).toLocaleDateString()}</td>
+                                        <td>$${b.totalAmount || 0}</td>
+                                        <td>${getStatusBadge(b.status)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+            if (document.getElementById('statusFilter')) document.getElementById('statusFilter').value = filterStatus;
+        }
+
+        function renderServices() {
+            let html = `
+                <div class="table-card">
+                    <div class="table-header"><div class="table-title">All Services</div></div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead><tr><th>Name</th><th>Provider</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                ${allServices.map(s => `
+                                    <tr>
+                                        <td>${s.name}</td>
+                                        <td>${s.providerId?.businessName || s.providerId?.firstName}</td>
+                                        <td>$${s.price}</td>
+                                        <td><span style="color: ${s.isActive ? '#10b981' : '#ef4444'}">${s.isActive ? 'Active' : 'Hidden'}</span></td>
+                                        <td><button class="btn-sm ${s.isActive ? 'btn-danger' : 'btn-success'}" onclick="toggleService('${s._id}', ${s.isActive})">${s.isActive ? 'Hide' : 'Show'}</button></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderRevenue() {
+            const totalRevenue = stats.payments?.totalRevenue || 0;
+            const totalCommission = stats.payments?.totalCommission || 0;
+            const totalProviderPayouts = stats.payments?.totalProviderPayouts || 0;
+            const totalDriverPayouts = stats.payments?.totalDriverPayouts || 0;
+            const recentTransactions = paymentAnalytics.recentTransactions || [];
+            const monthlyRevenue = paymentAnalytics.monthlyRevenue || [];
+            maxRevenue = Math.max(...monthlyRevenue.map(m => m.revenue), 1);
+
+            let html = `
+                <div class="revenue-grid">
+                    <div class="revenue-card"><div>Total Revenue</div><div class="revenue-value">$${totalRevenue.toLocaleString()}</div></div>
+                    <div class="revenue-card"><div>Platform Commission</div><div class="revenue-value">$${totalCommission.toLocaleString()}</div></div>
+                    <div class="revenue-card"><div>Provider Payouts</div><div class="revenue-value">$${totalProviderPayouts.toLocaleString()}</div></div>
+                    <div class="revenue-card"><div>Driver Payouts</div><div class="revenue-value">$${totalDriverPayouts.toLocaleString()}</div></div>
+                </div>
+                <div class="table-card">
+                    <div class="table-header"><div class="table-title">Monthly Revenue Breakdown</div></div>
+                    <div class="chart-container">
+                        ${monthlyRevenue.map(m => `
+                            <div class="chart-bar">
+                                <div class="bar-fill" style="height: ${(m.revenue / maxRevenue) * 150}px; background-color: #8b5cf6;"></div>
+                                <div class="bar-fill-small" style="height: ${(m.commission / maxRevenue) * 150}px; background-color: #f59e0b;"></div>
+                                <span style="font-size: 11px;">${m.month}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="table-card">
+                    <div class="table-header"><div class="table-title">Recent Transactions</div></div>
+                    <div class="table-wrapper">
+                        ${recentTransactions.map(t => `
+                            <div class="pending-item">
+                                <div><strong>${t.bookingId?.serviceName}</strong><div style="font-size: 11px; color: #6b7280;">${t.customerId?.firstName || ''} ${t.customerId?.lastName || ''}</div></div>
+                                <div>$${t.amount}</div>
+                                <div>${t.paymentMethod}</div>
+                                <div>${new Date(t.paidAt).toLocaleDateString()}</div>
+                                <button class="invoice-btn" onclick="downloadInvoice('${t._id}')">Invoice</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderPayouts() {
+            let html = `
+                <div class="table-card">
+                    <div class="table-header"><div class="table-title">Provider Payouts</div></div>
+                    ${pendingPayouts.providerPayouts?.map(p => `
+                        <div class="pending-item">
+                            <span><strong>${p.name}</strong> - ${p.count} bookings</span>
+                            <span style="font-weight: bold; color: #10b981;">$${p.amount?.toLocaleString() || 0}</span>
+                            <button class="btn-sm btn-success" onclick="processPayout('${p.id}', 'provider')">Process Payment</button>
+                        </div>
+                    `).join('') || '<div class="empty-state">No pending provider payouts</div>'}
+                </div>
+                <div class="table-card">
+                    <div class="table-header"><div class="table-title">Driver Payouts</div></div>
+                    ${pendingPayouts.driverPayouts?.map(d => `
+                        <div class="pending-item">
+                            <span><strong>${d.name}</strong> - ${d.count} deliveries</span>
+                            <span style="font-weight: bold; color: #10b981;">$${d.amount?.toLocaleString() || 0}</span>
+                            <button class="btn-sm btn-success" onclick="processPayout('${d.id}', 'driver')">Process Payment</button>
+                        </div>
+                    `).join('') || '<div class="empty-state">No pending driver payouts</div>'}
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderRefunds() {
+            pendingRefunds = allRefunds.filter(r => r.status === 'pending').length;
+            let html = `
+                <div class="table-card">
+                    <div class="table-header">
+                        <div class="table-title">Refund Requests ${pendingRefunds > 0 ? `<span style="background-color: #ef4444; color: white; padding: 2px 8px; border-radius: 20px; font-size: 11px; margin-left: 8px;">${pendingRefunds} pending</span>` : ''}</div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead><tr><th>Customer</th><th>Service</th><th>Amount</th><th>Reason</th><th>Status</th><th>Requested</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                ${allRefunds.map(r => `
+                                    <tr>
+                                        <td><strong>${r.customerId?.firstName || ''} ${r.customerId?.lastName || ''}</strong><br><span style="font-size: 11px; color: #6b7280;">${r.customerId?.email || ''}</span></td>
+                                        <td>${r.bookingId?.serviceName || '-'}</td>
+                                        <td>$${r.amount}</td>
+                                        <td>${(r.reason || '').substring(0, 50)}...</td>
+                                        <td>${r.status}</td>
+                                        <td>${new Date(r.requestedAt).toLocaleDateString()}</td>
+                                        <td>${r.status === 'pending' ? `<button class="btn-sm btn-purple" onclick="openRefundModal('${r._id}')">Review</button>` : '-'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderReviews() {
+            let html = `
+                <div class="table-card">
+                    <div class="table-header">
+                        <div class="table-title">Customer Reviews</div>
+                        <button class="btn-sm btn-primary" onclick="fetchAllReviews(); loadTab(currentTab);">Refresh</button>
+                    </div>
+                    <div class="table-wrapper">
+                        ${allReviews.length === 0 ? '<div class="empty-state">No reviews yet.</div>' : `
+                            <table>
+                                <thead><tr><th>Customer</th><th>Provider</th><th>Rating</th><th>Review</th><th>Date</th><th>Actions</th></tr></thead>
+                                <tbody>
+                                    ${allReviews.map(r => `
+                                        <tr>
+                                            <td>${r.customerId?.firstName || ''} ${r.customerId?.lastName || ''}</td>
+                                            <td>${r.providerId?.businessName || r.providerId?.firstName || '-'}</td>
+                                            <td>${r.providerRating}/5</td>
+                                            <td>${(r.providerReview || '').substring(0, 80)}...</td>
+                                            <td>${new Date(r.createdAt).toLocaleDateString()}</td>
+                                            <td><button class="btn-sm btn-danger" onclick="hideReview('${r._id}')">Hide</button></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        `}
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderPromos() {
+            let html = `
+                <div class="table-card">
+                    <div class="table-header">
+                        <div class="table-title">Promo Codes</div>
+                        <button class="btn-sm btn-success" onclick="openPromoModal()">+ Create Promo Code</button>
+                    </div>
+                    <div class="table-wrapper">
+                        ${allPromoCodes.length === 0 ? '<div class="empty-state">No promo codes created yet.</div>' : `
+                            <table>
+                                <thead><tr><th>Code</th><th>Description</th><th>Discount</th><th>Used/Limit</th><th>Valid Until</th><th>Status</th><th>Actions</th></tr></thead>
+                                <tbody>
+                                    ${allPromoCodes.map(p => `
+                                        <tr>
+                                            <td><strong>${p.code}</strong></td>
+                                            <td>${p.description || '-'}</td>
+                                            <td>${p.discountType === 'percentage' ? `${p.discountValue}%` : `$${p.discountValue}`}</td>
+                                            <td>${p.usedCount} / ${p.usageLimit}</td>
+                                            <td>${p.validUntil ? new Date(p.validUntil).toLocaleDateString() : 'Never'}</td>
+                                            <td><span style="color: ${p.isActive ? '#10b981' : '#ef4444'}">${p.isActive ? 'Active' : 'Inactive'}</span></td>
+                                            <td><button class="btn-sm btn-danger" onclick="deletePromoCode('${p._id}', '${p.code}')">Delete</button></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        `}
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderLoyalty() {
+            const totalPoints = allLoyalty.reduce((sum, l) => sum + (l.lifetimePoints || 0), 0);
+            const totalUsers = allLoyalty.length;
+            const avgPoints = totalUsers > 0 ? Math.round(totalPoints / totalUsers) : 0;
+            let html = `
+                <div class="revenue-grid">
+                    <div class="revenue-card"><div style="font-size: 24px;">💎</div><div>Total Points Issued</div><div class="revenue-value">${totalPoints.toLocaleString()}</div></div>
+                    <div class="revenue-card"><div style="font-size: 24px;">👥</div><div>Active Loyalty Users</div><div class="revenue-value">${totalUsers}</div></div>
+                    <div class="revenue-card"><div style="font-size: 24px;">📊</div><div>Average Points per User</div><div class="revenue-value">${avgPoints.toLocaleString()}</div></div>
+                </div>
+                <div class="table-card">
+                    <div class="table-header"><div class="table-title">Loyalty Leaderboard</div></div>
+                    <div class="table-wrapper">
+                        ${allLoyalty.length === 0 ? '<div class="empty-state">No loyalty data yet.</div>' : `
+                            <table>
+                                <thead><tr><th>Rank</th><th>User</th><th>Tier</th><th>Points</th><th>Lifetime Points</th></tr></thead>
+                                <tbody>
+                                    ${allLoyalty.slice(0, 10).map((user, index) => `
+                                        <tr>
+                                            <td>${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}`}</td>
+                                            <td>${user.userId?.firstName || ''} ${user.userId?.lastName || ''}${user.userId?.businessName ? `<div style="font-size: 11px; color: #6b7280;">${user.userId.businessName}</div>` : ''}</td>
+                                            <td><span style="background-color: ${user.tier === 'Platinum' ? '#e0e7ff' : user.tier === 'Gold' ? '#fef3c7' : '#f3e8ff'}; color: ${user.tier === 'Platinum' ? '#4338ca' : user.tier === 'Gold' ? '#92400e' : '#7c3aed'}; padding: 4px 8px; border-radius: 20px; font-size: 11px;">${user.tier || 'Bronze'}</span></td>
+                                            <td>${user.points?.toLocaleString() || 0}</td>
+                                            <td>${user.lifetimePoints?.toLocaleString() || 0}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        `}
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        async function loadTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tab) item.classList.add('active');
+            });
+            const titles = {
+                dashboard: 'Dashboard', users: 'User Management', providers: 'Provider Management',
+                drivers: 'Driver Management', bookings: 'Booking Management', services: 'Service Management',
+                revenue: 'Revenue Analytics', payouts: 'Payout Management', refunds: 'Refund Requests',
+                reviews: 'Customer Reviews', promos: 'Promo Codes', loyalty: 'Loyalty Program'
+            };
+            document.getElementById('pageTitle').innerText = titles[tab] || 'Admin Dashboard';
+            await fetchAllData();
+            if (tab === 'dashboard') renderDashboard();
+            else if (tab === 'users') renderUsers();
+            else if (tab === 'providers') renderProviders();
+            else if (tab === 'drivers') renderDrivers();
+            else if (tab === 'bookings') renderBookings();
+            else if (tab === 'services') renderServices();
+            else if (tab === 'revenue') renderRevenue();
+            else if (tab === 'payouts') renderPayouts();
+            else if (tab === 'refunds') renderRefunds();
+            else if (tab === 'reviews') renderReviews();
+            else if (tab === 'promos') renderPromos();
+            else if (tab === 'loyalty') renderLoyalty();
+        }
+
+        function logout() {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUser');
+            window.location.href = '/admin-login.html';
+        }
+
+        // Event listeners
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', () => loadTab(item.dataset.tab));
+        });
+
+        // Auto refresh every 30 seconds
+        setInterval(() => {
+            if (currentTab) loadTab(currentTab);
+        }, 30000);
+
+        // Simulate live activity (you can replace with WebSocket later)
+        setInterval(() => {
+            liveActivity = [{
+                id: Date.now(),
+                type: 'driver_status',
+                message: `Live activity feed active`,
+                timestamp: new Date()
+            }, ...liveActivity.slice(0, 19)];
+            if (currentTab === 'dashboard') renderDashboard();
+        }, 30000);
+
+        // Initial load
+        loadTab('dashboard');
+    </script>
+</body>
+</html>

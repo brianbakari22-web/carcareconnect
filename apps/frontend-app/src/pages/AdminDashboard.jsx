@@ -21,22 +21,15 @@ function AdminDashboard({ user, onLogout }) {
   const [filterStatus, setFilterStatus] = useState('all');
   const [darkMode, setDarkMode] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  
-  // NEW: Reviews State
   const [allReviews, setAllReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
-  
-  // NEW: Promo Codes State
   const [promoCodes, setPromoCodes] = useState([]);
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [newPromoCode, setNewPromoCode] = useState({
     code: '', description: '', discountType: 'percentage', discountValue: '', minPurchase: '', usageLimit: '', validUntil: ''
   });
-  
-  // NEW: Loyalty State
   const [loyaltyLeaderboard, setLoyaltyLeaderboard] = useState([]);
   const [loyaltyStats, setLoyaltyStats] = useState({ totalPoints: 0, totalUsers: 0, averagePoints: 0 });
-
   const [stats, setStats] = useState({
     users: { total: 0, customers: 0, providers: 0, drivers: 0 },
     services: { total: 0 },
@@ -44,22 +37,14 @@ function AdminDashboard({ user, onLogout }) {
     payments: { totalRevenue: 0, totalCommission: 0, totalProviderPayouts: 0, totalDriverPayouts: 0, totalTransactions: 0, monthlyGrowth: 0, pendingProviderPayouts: 0, pendingDriverPayouts: 0 },
     platform: { rating: 0, totalReviews: 0 }
   });
-
-  // WebSocket states
   const [onlineUsers, setOnlineUsers] = useState({ providers: [], drivers: [] });
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [liveActivity, setLiveActivity] = useState([]);
 
-  const token = localStorage.getItem('token');
+  const adminToken = localStorage.getItem('adminToken');
 
-  // Initialize push notifications
-  useEffect(() => {
-    initializePushNotifications();
-  }, []);
-
-  // WebSocket integration
   const { 
     isConnected,
     onDriverStatusChange,
@@ -67,15 +52,23 @@ function AdminDashboard({ user, onLogout }) {
     onNewNotification
   } = useSocket();
 
-  // Listen for driver status changes
+  useEffect(() => {
+    initializePushNotifications();
+    fetchAllData();
+    fetchOnlineUsers();
+    fetchPromoCodes();
+    fetchLoyaltyLeaderboard();
+    const interval = setInterval(fetchOnlineUsers, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     const unsubscribe = onDriverStatusChange((data) => {
-      console.log('Driver status change:', data);
       setOnlineUsers(prev => {
         const updatedDrivers = [...prev.drivers];
         if (data.isOnline) {
           if (!updatedDrivers.some(d => d.id === data.driverId)) {
-            updatedDrivers.push({ id: data.driverId, name: data.driverName, isOnline: true, lastSeen: new Date() });
+            updatedDrivers.push({ id: data.driverId, name: data.driverName, isOnline: true });
           }
         } else {
           const index = updatedDrivers.findIndex(d => d.id === data.driverId);
@@ -89,16 +82,12 @@ function AdminDashboard({ user, onLogout }) {
         message: `${data.driverName || 'A driver'} is now ${data.isOnline ? 'ONLINE' : 'OFFLINE'}`,
         timestamp: new Date()
       }, ...prev].slice(0, 20));
-      toast.info(`${data.driverName || 'Driver'} ${data.isOnline ? 'went online' : 'went offline'}`);
-      sendPushNotification('Driver Status', `${data.driverName || 'A driver'} is now ${data.isOnline ? 'online' : 'offline'}`);
     });
     return () => unsubscribe && unsubscribe();
   }, [onDriverStatusChange]);
 
-  // Listen for booking status changes
   useEffect(() => {
     const unsubscribe = onBookingStatusChanged((data) => {
-      console.log('Booking status change:', data);
       fetchStats();
       fetchBookings();
       setLiveActivity(prev => [{
@@ -107,15 +96,12 @@ function AdminDashboard({ user, onLogout }) {
         message: `Booking #${data.bookingId?.slice(-6)} status changed to ${data.status}`,
         timestamp: new Date()
       }, ...prev].slice(0, 20));
-      sendPushNotification('Booking Update', `Booking ${data.bookingId} status changed to ${data.status}`);
     });
     return () => unsubscribe && unsubscribe();
   }, [onBookingStatusChanged]);
 
-  // Listen for new notifications
   useEffect(() => {
     const unsubscribe = onNewNotification((notification) => {
-      console.log('New notification:', notification);
       setNotifications(prev => [notification, ...prev]);
       setUnreadCount(prev => prev + 1);
       setLiveActivity(prev => [{
@@ -124,15 +110,13 @@ function AdminDashboard({ user, onLogout }) {
         message: notification.message,
         timestamp: new Date()
       }, ...prev].slice(0, 20));
-      sendPushNotification(notification.title || 'New Notification', notification.message);
     });
     return () => unsubscribe && unsubscribe();
   }, [onNewNotification]);
 
-  // Fetch online users
   const fetchOnlineUsers = async () => {
     try {
-      const driversRes = await fetch('https://carcareconnect-backend.onrender.com/api/driver/online');
+      const driversRes = await fetch('http://localhost:5000/api/driver/online');
       const driversData = await driversRes.json();
       if (driversData.success) {
         setOnlineUsers(prev => ({ ...prev, drivers: driversData.drivers || [] }));
@@ -141,36 +125,6 @@ function AdminDashboard({ user, onLogout }) {
       console.error('Error fetching online users:', error);
     }
   };
-
-  // Download invoice
-  const downloadInvoice = async (transactionId) => {
-    try {
-      const res = await fetch(`https://carcareconnect-backend.onrender.com/api/invoices/download/${transactionId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        setTimeout(() => window.URL.revokeObjectURL(url), 100);
-        toast.success('Invoice opened');
-      } else {
-        toast.error('Failed to download invoice');
-      }
-    } catch (err) {
-      toast.error('Error downloading invoice');
-    }
-  };
-
-  // Fetch all data
-  useEffect(() => {
-    fetchAllData();
-    fetchOnlineUsers();
-    fetchPromoCodes();
-    fetchLoyaltyLeaderboard();
-    const interval = setInterval(fetchOnlineUsers, 10000);
-    return () => clearInterval(interval);
-  }, []);
 
   const fetchAllData = async () => {
     setLoading(true);
@@ -195,8 +149,8 @@ function AdminDashboard({ user, onLogout }) {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/admin/stats', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch('http://localhost:5000/api/admin/stats', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       const data = await res.json();
       if (data.success) setStats(data.stats);
@@ -205,8 +159,8 @@ function AdminDashboard({ user, onLogout }) {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/admin/users', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch('http://localhost:5000/api/admin/users', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       const data = await res.json();
       if (data.success) setUsers(data.users);
@@ -215,8 +169,8 @@ function AdminDashboard({ user, onLogout }) {
 
   const fetchBookings = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/admin/bookings', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch('http://localhost:5000/api/admin/bookings', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       const data = await res.json();
       if (data.success) setBookings(data.bookings);
@@ -225,8 +179,8 @@ function AdminDashboard({ user, onLogout }) {
 
   const fetchServices = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/admin/services', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch('http://localhost:5000/api/admin/services', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       const data = await res.json();
       if (data.success) setServices(data.services);
@@ -235,8 +189,8 @@ function AdminDashboard({ user, onLogout }) {
 
   const fetchPaymentAnalytics = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/admin/payment-analytics', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch('http://localhost:5000/api/admin/payment-analytics', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       const data = await res.json();
       if (data.success) setPaymentAnalytics(data.analytics);
@@ -245,8 +199,8 @@ function AdminDashboard({ user, onLogout }) {
 
   const fetchPendingPayouts = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/admin/pending-payouts', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch('http://localhost:5000/api/admin/pending-payouts', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       const data = await res.json();
       if (data.success) setPendingPayouts(data);
@@ -255,20 +209,19 @@ function AdminDashboard({ user, onLogout }) {
 
   const fetchRefunds = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/refunds/all', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch('http://localhost:5000/api/refunds/all', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       const data = await res.json();
       if (data.success) setRefunds(data.refunds);
     } catch (error) { console.error(error); }
   };
 
-  // NEW: Reviews functions
   const fetchAllReviews = async () => {
     setReviewsLoading(true);
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/reviews/all', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch('http://localhost:5000/api/reviews/all', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       const data = await res.json();
       if (data.success) setAllReviews(data.reviews);
@@ -280,11 +233,11 @@ function AdminDashboard({ user, onLogout }) {
   };
 
   const hideReview = async (reviewId) => {
-    if (window.confirm('Hide this review? It will no longer be visible to users.')) {
+    if (window.confirm('Hide this review?')) {
       try {
-        const res = await fetch(`https://carcareconnect-backend.onrender.com/api/reviews/hide/${reviewId}`, {
+        const res = await fetch(`http://localhost:5000/api/reviews/hide/${reviewId}`, {
           method: 'PUT',
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${adminToken}` }
         });
         const data = await res.json();
         if (data.success) {
@@ -297,11 +250,10 @@ function AdminDashboard({ user, onLogout }) {
     }
   };
 
-  // NEW: Promo Code functions
   const fetchPromoCodes = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/promo/all', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch('http://localhost:5000/api/promo/all', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       const data = await res.json();
       if (data.success) setPromoCodes(data.promoCodes);
@@ -313,11 +265,11 @@ function AdminDashboard({ user, onLogout }) {
   const createPromoCode = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/promo/create', {
+      const res = await fetch('http://localhost:5000/api/promo/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${adminToken}`
         },
         body: JSON.stringify({
           ...newPromoCode,
@@ -345,9 +297,9 @@ function AdminDashboard({ user, onLogout }) {
   const deletePromoCode = async (id, code) => {
     if (window.confirm(`Delete promo code "${code}"?`)) {
       try {
-        const res = await fetch(`https://carcareconnect-backend.onrender.com/api/promo/${id}`, {
+        const res = await fetch(`http://localhost:5000/api/promo/${id}`, {
           method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${adminToken}` }
         });
         const data = await res.json();
         if (data.success) {
@@ -360,10 +312,9 @@ function AdminDashboard({ user, onLogout }) {
     }
   };
 
-  // NEW: Loyalty functions
   const fetchLoyaltyLeaderboard = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/loyalty/leaderboard');
+      const res = await fetch('http://localhost:5000/api/loyalty/leaderboard');
       const data = await res.json();
       if (data.success) {
         setLoyaltyLeaderboard(data.leaderboard);
@@ -379,19 +330,17 @@ function AdminDashboard({ user, onLogout }) {
     }
   };
 
-  // EXISTING: User management functions
   const updateUserStatus = async (userId, isActive) => {
     try {
-      const res = await fetch(`https://carcareconnect-backend.onrender.com/api/admin/users/${userId}`, {
+      const res = await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
         body: JSON.stringify({ isActive })
       });
       if (res.ok) {
         toast.success(`User ${isActive ? 'activated' : 'suspended'}`);
         fetchUsers();
         fetchStats();
-        sendPushNotification('User Status', `User has been ${isActive ? 'activated' : 'suspended'}`);
       }
     } catch (error) {
       toast.error('Failed to update user');
@@ -400,15 +349,14 @@ function AdminDashboard({ user, onLogout }) {
 
   const verifyUser = async (userId, role) => {
     try {
-      const res = await fetch(`https://carcareconnect-backend.onrender.com/api/admin/users/${userId}`, {
+      const res = await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
         body: JSON.stringify({ isVerified: true })
       });
       if (res.ok) {
         toast.success(`${role} verified successfully`);
         fetchUsers();
-        sendPushNotification('Verification Complete', `${role} account has been verified`);
       }
     } catch (error) {
       toast.error('Failed to verify');
@@ -418,9 +366,9 @@ function AdminDashboard({ user, onLogout }) {
   const deleteUser = async (userId, name) => {
     if (window.confirm(`Delete ${name}? This action cannot be undone.`)) {
       try {
-        await fetch(`https://carcareconnect-backend.onrender.com/api/admin/users/${userId}`, {
+        await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
           method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${adminToken}` }
         });
         toast.success('User deleted');
         fetchUsers();
@@ -433,9 +381,9 @@ function AdminDashboard({ user, onLogout }) {
 
   const toggleServiceStatus = async (serviceId, isActive) => {
     try {
-      await fetch(`https://carcareconnect-backend.onrender.com/api/admin/services/${serviceId}/status`, {
+      await fetch(`http://localhost:5000/api/admin/services/${serviceId}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
         body: JSON.stringify({ isActive: !isActive })
       });
       toast.success(`Service ${!isActive ? 'activated' : 'hidden'}`);
@@ -447,15 +395,14 @@ function AdminDashboard({ user, onLogout }) {
 
   const processPayout = async (userId, type) => {
     try {
-      await fetch('https://carcareconnect-backend.onrender.com/api/admin/process-payout', {
+      await fetch('http://localhost:5000/api/admin/process-payout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
         body: JSON.stringify({ userId, type })
       });
       toast.success('Payout processed');
       fetchPendingPayouts();
       fetchStats();
-      sendPushNotification('Payout Processed', `A ${type} payout has been processed`);
     } catch (error) {
       toast.error('Failed to process payout');
     }
@@ -463,9 +410,9 @@ function AdminDashboard({ user, onLogout }) {
 
   const approveRefund = async (refundId) => {
     try {
-      const res = await fetch(`https://carcareconnect-backend.onrender.com/api/refunds/${refundId}/approve`, {
+      const res = await fetch(`http://localhost:5000/api/refunds/${refundId}/approve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
         body: JSON.stringify({ adminNotes })
       });
       const data = await res.json();
@@ -474,7 +421,6 @@ function AdminDashboard({ user, onLogout }) {
         fetchRefunds();
         setSelectedRefund(null);
         setAdminNotes('');
-        sendPushNotification('Refund Approved', 'A refund request has been approved');
       } else {
         toast.error(data.error || 'Failed to approve refund');
       }
@@ -489,9 +435,9 @@ function AdminDashboard({ user, onLogout }) {
       return;
     }
     try {
-      const res = await fetch(`https://carcareconnect-backend.onrender.com/api/refunds/${refundId}/reject`, {
+      const res = await fetch(`http://localhost:5000/api/refunds/${refundId}/reject`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
         body: JSON.stringify({ rejectionReason })
       });
       const data = await res.json();
@@ -505,6 +451,25 @@ function AdminDashboard({ user, onLogout }) {
       }
     } catch (error) {
       toast.error('Failed to reject refund');
+    }
+  };
+
+  const downloadInvoice = async (transactionId) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/invoices/download/${transactionId}`, {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => window.URL.revokeObjectURL(url), 100);
+        toast.success('Invoice opened');
+      } else {
+        toast.error('Failed to download invoice');
+      }
+    } catch (err) {
+      toast.error('Error downloading invoice');
     }
   };
 
@@ -551,7 +516,7 @@ function AdminDashboard({ user, onLogout }) {
 
   const filteredUsers = users.filter(u => {
     const matchesRole = filterRole === 'all' || u.role === filterRole;
-    const matchesSearch = searchTerm === '' || u.email?.toLowerCase().includes(searchTerm.toLowerCase()) || u.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) || u.lastName?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = searchTerm === '' || u.email?.toLowerCase().includes(searchTerm.toLowerCase()) || u.firstName?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesRole && matchesSearch;
   });
 
@@ -585,33 +550,21 @@ function AdminDashboard({ user, onLogout }) {
       width: sidebarCollapsed ? '80px' : '280px',
       backgroundColor: darkMode ? '#1e293b' : '#ffffff',
       transition: 'width 0.3s ease',
-      position: 'fixed',
-      height: '100vh',
-      overflow: 'hidden',
-      zIndex: 100,
-      boxShadow: '2px 0 8px rgba(0,0,0,0.05)'
+      position: 'fixed', height: '100vh', overflow: 'hidden', zIndex: 100, boxShadow: '2px 0 8px rgba(0,0,0,0.05)'
     },
     sidebarHeader: {
       padding: sidebarCollapsed ? '20px 0' : '24px 24px',
       borderBottom: '1px solid ' + (darkMode ? '#334155' : '#e5e7eb'),
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: sidebarCollapsed ? 'center' : 'space-between'
+      display: 'flex', alignItems: 'center', justifyContent: sidebarCollapsed ? 'center' : 'space-between'
     },
     logoIcon: { fontSize: '28px' },
     logoText: { fontSize: '18px', fontWeight: 'bold', marginLeft: '10px', display: sidebarCollapsed ? 'none' : 'block', color: darkMode ? 'white' : '#1f2937' },
     collapseBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', display: sidebarCollapsed ? 'none' : 'block', color: darkMode ? 'white' : '#6b7280' },
     sidebarMenu: { flex: 1, padding: '20px 0' },
     menuItem: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-      padding: sidebarCollapsed ? '12px 0' : '12px 24px',
-      margin: '4px 8px',
-      borderRadius: '10px',
-      cursor: 'pointer',
-      transition: 'all 0.2s ease',
-      justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+      display: 'flex', alignItems: 'center', gap: '12px',
+      padding: sidebarCollapsed ? '12px 0' : '12px 24px', margin: '4px 8px', borderRadius: '10px', cursor: 'pointer',
+      transition: 'all 0.2s ease', justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
       color: darkMode ? '#94a3b8' : '#6b7280'
     },
     menuItemActive: { backgroundColor: darkMode ? '#8b5cf620' : '#8b5cf610', color: '#8b5cf6' },
@@ -619,15 +572,9 @@ function AdminDashboard({ user, onLogout }) {
     menuLabel: { fontSize: '14px', fontWeight: '500', display: sidebarCollapsed ? 'none' : 'block' },
     mainContent: { flex: 1, marginLeft: sidebarCollapsed ? '80px' : '280px', transition: 'margin-left 0.3s ease' },
     topHeader: {
-      backgroundColor: darkMode ? '#1e293b' : '#ffffff',
-      padding: '16px 30px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      borderBottom: '1px solid ' + (darkMode ? '#334155' : '#e5e7eb'),
-      position: 'sticky',
-      top: 0,
-      zIndex: 99
+      backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '16px 30px',
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      borderBottom: '1px solid ' + (darkMode ? '#334155' : '#e5e7eb'), position: 'sticky', top: 0, zIndex: 99
     },
     headerTitle: { fontSize: '20px', fontWeight: 'bold', color: darkMode ? 'white' : '#1f2937' },
     headerRight: { display: 'flex', alignItems: 'center', gap: '20px' },
@@ -711,7 +658,6 @@ function AdminDashboard({ user, onLogout }) {
     <div style={styles.container}>
       <ToastContainer position="top-right" />
       
-      {/* Sidebar */}
       <div style={styles.sidebar}>
         <div style={styles.sidebarHeader}>
           <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -740,9 +686,7 @@ function AdminDashboard({ user, onLogout }) {
         </div>
       </div>
 
-      {/* Main Content */}
       <div style={styles.mainContent}>
-        {/* Top Header */}
         <div style={styles.topHeader}>
           <div style={styles.headerTitle}>
             {menuItems.find(m => m.id === activeTab)?.label || 'Dashboard'}
@@ -760,19 +704,16 @@ function AdminDashboard({ user, onLogout }) {
               {darkMode ? '☀️' : '🌙'}
             </button>
             <div style={styles.userInfo}>
-              <div style={styles.avatar}>
-                {user?.firstName?.charAt(0) || 'A'}
-              </div>
+              <div style={styles.avatar}>A</div>
               <div>
-                <div style={styles.userName}>{user?.firstName} {user?.lastName}</div>
-                <div style={{ fontSize: '11px', color: '#8b5cf6' }}>Administrator</div>
+                <div style={styles.userName}>Administrator</div>
+                <div style={{ fontSize: '11px', color: '#8b5cf6' }}>Founder</div>
               </div>
               <button style={styles.logoutBtn} onClick={onLogout}>Logout</button>
             </div>
           </div>
         </div>
 
-        {/* Notification Dropdown */}
         {showNotifications && (
           <div style={{
             position: 'absolute', top: '70px', right: '30px', width: '350px', backgroundColor: 'white',
@@ -799,9 +740,7 @@ function AdminDashboard({ user, onLogout }) {
           </div>
         )}
 
-        {/* Content Area */}
         <div style={styles.contentArea}>
-          {/* Stats Cards */}
           <div style={styles.statsGrid}>
             <div style={styles.statCard}><div style={styles.statIcon}>💰</div><div style={styles.statInfo}><div style={styles.statValue}>${stats.payments?.totalRevenue?.toLocaleString() || 0}</div><div style={styles.statLabel}>Total Revenue</div></div></div>
             <div style={styles.statCard}><div style={styles.statIcon}>🏦</div><div style={styles.statInfo}><div style={styles.statValue}>${stats.payments?.totalCommission?.toLocaleString() || 0}</div><div style={styles.statLabel}>Platform Fee</div></div></div>
@@ -811,7 +750,6 @@ function AdminDashboard({ user, onLogout }) {
             <div style={styles.statCard}><div style={styles.statIcon}>🚗</div><div style={styles.statInfo}><div style={styles.statValue}>{stats.users?.drivers || 0}</div><div style={styles.statLabel}>Drivers</div></div></div>
           </div>
 
-          {/* Dashboard Tab - Online Users & Activity */}
           {activeTab === 'dashboard' && (
             <>
               <div style={styles.onlineCard}>
@@ -821,7 +759,7 @@ function AdminDashboard({ user, onLogout }) {
                   <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#6b7280' }}>Live updates</span>
                 </div>
                 <div>
-                  <div><strong style={{ color: darkMode ? 'white' : '#374151' }}>Drivers Online:</strong> {onlineUsers.drivers.length}</div>
+                  <div><strong>Drivers Online:</strong> {onlineUsers.drivers.length}</div>
                   <div style={styles.driverList}>
                     {onlineUsers.drivers.length === 0 ? (
                       <span style={{ fontSize: '12px', color: '#6b7280' }}>No drivers online</span>
@@ -879,7 +817,6 @@ function AdminDashboard({ user, onLogout }) {
             </>
           )}
 
-          {/* Users Tab */}
           {activeTab === 'users' && (
             <div style={styles.tableCard}>
               <div style={styles.tableHeader}>
@@ -897,9 +834,7 @@ function AdminDashboard({ user, onLogout }) {
               <div style={styles.tableWrapper}>
                 <table style={styles.table}>
                   <thead>
-                    <tr>
-                      <th style={styles.th}>User</th><th style={styles.th}>Email</th><th style={styles.th}>Role</th><th style={styles.th}>Stripe</th><th style={styles.th}>Status</th><th style={styles.th}>Actions</th>
-                    </tr>
+                    <tr><th style={styles.th}>User</th><th style={styles.th}>Email</th><th style={styles.th}>Role</th><th style={styles.th}>Stripe</th><th style={styles.th}>Status</th><th style={styles.th}>Actions</th></tr>
                   </thead>
                   <tbody>
                     {filteredUsers.map(u => (
@@ -924,7 +859,6 @@ function AdminDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Providers Tab */}
           {activeTab === 'providers' && (
             <div style={styles.tableCard}>
               <div style={styles.tableHeader}><div style={styles.tableTitle}>Provider Management</div></div>
@@ -954,7 +888,6 @@ function AdminDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Drivers Tab */}
           {activeTab === 'drivers' && (
             <div style={styles.tableCard}>
               <div style={styles.tableHeader}><div style={styles.tableTitle}>Driver Management</div></div>
@@ -993,7 +926,6 @@ function AdminDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Bookings Tab */}
           {activeTab === 'bookings' && (
             <div style={styles.tableCard}>
               <div style={styles.tableHeader}>
@@ -1026,7 +958,6 @@ function AdminDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Services Tab */}
           {activeTab === 'services' && (
             <div style={styles.tableCard}>
               <div style={styles.tableHeader}><div style={styles.tableTitle}>All Services</div></div>
@@ -1049,7 +980,6 @@ function AdminDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Revenue Tab */}
           {activeTab === 'revenue' && (
             <div>
               <div style={styles.revenueGrid}>
@@ -1087,7 +1017,6 @@ function AdminDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Payouts Tab */}
           {activeTab === 'payouts' && (
             <div>
               <div style={styles.tableCard}>
@@ -1115,7 +1044,6 @@ function AdminDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Refunds Tab */}
           {activeTab === 'refunds' && (
             <div style={styles.tableCard}>
               <div style={styles.tableHeader}>
@@ -1142,7 +1070,6 @@ function AdminDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* NEW: Reviews Tab */}
           {activeTab === 'reviews' && (
             <div style={styles.tableCard}>
               <div style={styles.tableHeader}>
@@ -1157,14 +1084,7 @@ function AdminDashboard({ user, onLogout }) {
                 ) : (
                   <table style={styles.table}>
                     <thead>
-                      <tr>
-                        <th style={styles.th}>Customer</th>
-                        <th style={styles.th}>Provider</th>
-                        <th style={styles.th}>Rating</th>
-                        <th style={styles.th}>Review</th>
-                        <th style={styles.th}>Date</th>
-                        <th style={styles.th}>Actions</th>
-                      </tr>
+                      <tr><th style={styles.th}>Customer</th><th style={styles.th}>Provider</th><th style={styles.th}>Rating</th><th style={styles.th}>Review</th><th style={styles.th}>Date</th><th style={styles.th}>Actions</th></tr>
                     </thead>
                     <tbody>
                       {allReviews.map(review => (
@@ -1174,9 +1094,7 @@ function AdminDashboard({ user, onLogout }) {
                           <td style={styles.td}>{review.providerRating}/5</td>
                           <td style={styles.td}>{review.providerReview?.substring(0, 80)}...</td>
                           <td style={styles.td}>{new Date(review.createdAt).toLocaleDateString()}</td>
-                          <td style={styles.td}>
-                            <button onClick={() => hideReview(review._id)} style={styles.btnDanger}>Hide</button>
-                          </td>
+                          <td style={styles.td}><button onClick={() => hideReview(review._id)} style={styles.btnDanger}>Hide</button></td>
                         </tr>
                       ))}
                     </tbody>
@@ -1186,7 +1104,6 @@ function AdminDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* NEW: Promo Codes Tab */}
           {activeTab === 'promos' && (
             <div style={styles.tableCard}>
               <div style={styles.tableHeader}>
@@ -1199,10 +1116,9 @@ function AdminDashboard({ user, onLogout }) {
                 ) : (
                   <table style={styles.table}>
                     <thead>
-                      <tr>
-                        <th style={styles.th}>Code</th><th style={styles.th}>Description</th><th style={styles.th}>Discount</th>
-                        <th style={styles.th}>Used/Limit</th><th style={styles.th}>Valid Until</th><th style={styles.th}>Status</th><th style={styles.th}>Actions</th>
-                      </tr>
+                      <tr><th style={styles.th}>Code</th><th style={styles.th}>Description</th><th style={styles.th}>Discount</th>
+                      <th style={styles.th}>Used/Limit</th><th style={styles.th}>Valid Until</th><th style={styles.th}>Status</th><th style={styles.th}>Actions</th>
+                    </tr>
                     </thead>
                     <tbody>
                       {promoCodes.map(promo => (
@@ -1223,7 +1139,6 @@ function AdminDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* NEW: Loyalty Tab */}
           {activeTab === 'loyalty' && (
             <div>
               <div style={styles.revenueGrid}>
@@ -1239,10 +1154,9 @@ function AdminDashboard({ user, onLogout }) {
                   ) : (
                     <table style={styles.table}>
                       <thead>
-                        <tr>
-                          <th style={styles.th}>Rank</th><th style={styles.th}>User</th><th style={styles.th}>Tier</th>
-                          <th style={styles.th}>Points</th><th style={styles.th}>Lifetime Points</th>
-                        </tr>
+                        <tr><th style={styles.th}>Rank</th><th style={styles.th}>User</th><th style={styles.th}>Tier</th>
+                        <th style={styles.th}>Points</th><th style={styles.th}>Lifetime Points</th>
+                      </tr>
                       </thead>
                       <tbody>
                         {loyaltyLeaderboard.map((user, index) => (
@@ -1264,7 +1178,6 @@ function AdminDashboard({ user, onLogout }) {
         </div>
       </div>
 
-      {/* Refund Review Modal */}
       {selectedRefund && (
         <div style={styles.modal}>
           <div style={styles.modalContent}>
@@ -1294,7 +1207,6 @@ function AdminDashboard({ user, onLogout }) {
         </div>
       )}
 
-      {/* Promo Code Create Modal */}
       {showPromoModal && (
         <div style={styles.modal}>
           <div style={styles.modalContent}>

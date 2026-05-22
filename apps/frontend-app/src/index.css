@@ -51,3 +51,13 @@ code {
 .fade-in {
   animation: fadeIn 0.3s ease-in-out;
 }
+
+/* Shimmer animation for skeletons */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}

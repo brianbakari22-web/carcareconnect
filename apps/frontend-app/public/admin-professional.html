@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Car Care Connect | Premium Admin Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f5f7fb;
+            overflow-x: hidden;
+        }
+
+        body.dark {
+            background: #0f172a;
+        }
+
+        body.dark .sidebar {
+            background: #1e293b;
+            border-right-color: #334155;
+        }
+
+        body.dark .logo-text,
+        body.dark .menu-label,
+        body.dark .header-title {
+            color: white;
+        }
+
+        body.dark .stat-card,
+        body.dark .card,
+        body.dark .online-card,
+        body.dark .revenue-card,
+        body.dark .top-header {
+            background: #1e293b;
+        }
+
+        body.dark .stat-value,
+        body.dark .revenue-value {
+            color: #a78bfa;
+        }
+
+        body.dark .stat-label,
+        body.dark td,
+        body.dark .menu-label:not(.active) {
+            color: #94a3b8;
+        }
+
+        body.dark th {
+            background: #334155;
+            color: #e2e8f0;
+        }
+
+        body.dark .driver-item {
+            background: #334155;
+            color: white;
+        }
+
+        body.dark .filter-select,
+        body.dark .filter-input {
+            background: #334155;
+            color: white;
+            border-color: #475569;
+        }
+
+        .admin-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: white;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            z-index: 100;
+            border-right: 1px solid #eef2f6;
+        }
+
+        .sidebar.collapsed {
+            width: 85px;
+        }
+
+        .sidebar.collapsed .logo-text,
+        .sidebar.collapsed .menu-label {
+            display: none;
+        }
+
+        .sidebar.collapsed .menu-item {
+            justify-content: center;
+            padding: 14px;
+        }
+
+        .sidebar.collapsed .sidebar-header {
+            justify-content: center;
+        }
+
+        .sidebar-header {
+            padding: 24px 20px;
+            border-bottom: 1px solid #eef2f6;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .collapse-btn {
+            background: #f1f5f9;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .menu-section {
+            padding: 20px 16px;
+        }
+
+        .menu-section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #94a3b8;
+            padding: 0 12px;
+            margin-bottom: 12px;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 16px;
+            margin: 4px 0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #64748b;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .menu-item:hover {
+            background: #f1f5f9;
+            color: #667eea;
+        }
+
+        .menu-item.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .menu-icon {
+            font-size: 20px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            transition: margin-left 0.3s;
+        }
+
+        .sidebar.collapsed ~ .main-content {
+            margin-left: 85px;
+        }
+
+        .top-header {
+            background: white;
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eef2f6;
+            position: sticky;
+            top: 0;
+            z-index: 99;
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .ws-badge {
+            background: #10b981;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 11px;
+            color: white;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .ws-badge::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .theme-toggle {
+            background: #f1f5f9;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .logout-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .logout-btn:hover {
+            background: #dc2626;
+            transform: translateY(-1px);
+        }
+
+        .content-area {
+            padding: 28px 32px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 28px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 24px;
+            border-radius: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s;
+            border: 1px solid #eef2f6;
+            text-align: center;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-icon {
+            font-size: 28px;
+            margin-bottom: 12px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 800;
+            color: #667eea;
+            margin: 8px 0;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 28px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            border: 1px solid #eef2f6;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .online-card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 28px;
+            border: 1px solid #eef2f6;
+        }
+
+        .driver-list {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .driver-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f8fafc;
+            padding: 8px 18px;
+            border-radius: 40px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #1e293b;
+        }
+
+        .online-dot {
+            width: 10px;
+            height: 10px;
+            background: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse 1.5s infinite;
+        }
+
+        .revenue-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            margin-bottom: 28px;
+        }
+
+        .revenue-card {
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            text-align: center;
+            border: 1px solid #eef2f6;
+        }
+
+        .revenue-value {
+            font-size: 28px;
+            font-weight: 800;
+            color: #667eea;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 16px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            background: #f8fafc;
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #475569;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #64748b;
+        }
+
+        tr:hover td {
+            background: #f8fafc;
+        }
+
+        .btn-sm {
+            padding: 6px 14px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+            margin: 2px;
+        }
+
+        .btn-sm:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-purple { background: #8b5cf6; color: white; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-warning { background: #f59e0b; color: white; }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .badge-pending { background: #fef3c7; color: #92400e; }
+        .badge-confirmed { background: #d1fae5; color: #065f46; }
+        .badge-progress { background: #e0e7ff; color: #4338ca; }
+        .badge-completed { background: #d1fae5; color: #065f46; }
+        .badge-cancelled { background: #fee2e2; color: #991b1b; }
+        .badge-active { background: #d1fae5; color: #065f46; }
+        .badge-inactive { background: #fee2e2; color: #991b1b; }
+
+        .filters {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .filter-select,
+        .filter-input {
+            padding: 8px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 13px;
+            background: white;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .pending-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid #f1f5f9;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .chart-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            height: 250px;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .chart-bar {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            width: 70px;
+        }
+
+        .bar-fill {
+            width: 40px;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            transition: height 0.3s;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 32px;
+            border-radius: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 85vh;
+            overflow: auto;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
+
+        .modal-content input,
+        .modal-content select,
+        .modal-content textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: #94a3b8;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 80px;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">🚗💨</div>
+                    <span class="logo-text">Car Care Connect</span>
+                </div>
+                <button class="collapse-btn" onclick="toggleSidebar()">‹</button>
+            </div>
+            
+            <div class="menu-section">
+                <div class="menu-section-title">MAIN</div>
+                <div class="menu-item active" data-tab="dashboard"><span class="menu-icon">📊</span><span class="menu-label">Dashboard</span></div>
+                <div class="menu-item" data-tab="users"><span class="menu-icon">👥</span><span class="menu-label">Users</span></div>
+                <div class="menu-item" data-tab="providers"><span class="menu-icon">🔧</span><span class="menu-label">Providers</span></div>
+                <div class="menu-item" data-tab="drivers"><span class="menu-icon">🚗</span><span class="menu-label">Drivers</span></div>
+            </div>
+
+            <div class="menu-section">
+                <div class="menu-section-title">BUSINESS</div>
+                <div class="menu-item" data-tab="bookings"><span class="menu-icon">📅</span><span class="menu-label">Bookings</span></div>
+                <div class="menu-item" data-tab="services"><span class="menu-icon">🛠️</span><span class="menu-label">Services</span></div>
+                <div class="menu-item" data-tab="revenue"><span class="menu-icon">💰</span><span class="menu-label">Revenue</span></div>
+                <div class="menu-item" data-tab="payouts"><span class="menu-icon">💸</span><span class="menu-label">Payouts</span></div>
+            </div>
+
+            <div class="menu-section">
+                <div class="menu-section-title">MANAGEMENT</div>
+                <div class="menu-item" data-tab="refunds"><span class="menu-icon">🔄</span><span class="menu-label">Refunds</span></div>
+                <div class="menu-item" data-tab="reviews"><span class="menu-icon">⭐</span><span class="menu-label">Reviews</span></div>
+                <div class="menu-item" data-tab="promos"><span class="menu-icon">🎟️</span><span class="menu-label">Promo Codes</span></div>
+                <div class="menu-item" data-tab="loyalty"><span class="menu-icon">💎</span><span class="menu-label">Loyalty</span></div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="top-header">
+                <h1 class="header-title" id="pageTitle">Dashboard</h1>
+                <div class="header-right">
+                    <div class="ws-badge">Live Connection</div>
+                    <button class="theme-toggle" onclick="toggleDarkMode()">🌙</button>
+                    <div class="user-info">
+                        <div class="avatar" id="adminAvatar">AD</div>
+                        <button class="logout-btn" onclick="handleLogout()">Logout</button>
+                    </div>
+                </div>
+            </div>
+            <div class="content-area" id="content">
+                <div class="loading"><i class="fas fa-spinner fa-spin" style="font-size: 40px;"></i><p style="margin-top: 16px;">Loading dashboard...</p></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="refundModal" class="modal">
+        <div class="modal-content">
+            <h3>Review Refund Request</h3>
+            <div id="refundDetails"></div>
+            <textarea id="adminNotes" placeholder="Admin notes" rows="3"></textarea>
+            <div class="modal-actions">
+                <button class="btn-sm btn-success" onclick="approveRefund()">Approve</button>
+                <button class="btn-sm btn-danger" onclick="showRejectReason()">Reject</button>
+                <button class="btn-sm" onclick="closeModal('refundModal')">Cancel</button>
+            </div>
+            <div id="rejectSection" style="display:none; margin-top:16px;">
+                <textarea id="rejectionReason" placeholder="Rejection reason" rows="2"></textarea>
+                <button class="btn-sm btn-danger" onclick="rejectRefund()">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="promoModal" class="modal">
+        <div class="modal-content">
+            <h3>Create Promo Code</h3>
+            <input type="text" id="promoCode" placeholder="Code">
+            <input type="text" id="promoDesc" placeholder="Description">
+            <select id="promoType"><option value="percentage">Percentage</option><option value="fixed">Fixed Amount</option></select>
+            <input type="number" id="promoValue" placeholder="Value">
+            <input type="number" id="promoMinPurchase" placeholder="Min Purchase">
+            <input type="number" id="promoLimit" placeholder="Usage Limit" value="1">
+            <input type="date" id="promoValidUntil">
+            <div class="modal-actions">
+                <button class="btn-sm btn-success" onclick="createPromoCode()">Create</button>
+                <button class="btn-sm" onclick="closeModal('promoModal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://carcareconnect-backend.onrender.com';
+        let token = localStorage.getItem('adminToken');
+        let currentTab = 'dashboard';
+        let allUsers = [], allBookings = [], allServices = [], allRefunds = [], allReviews = [], allPromoCodes = [], allLoyalty = [];
+        let paymentAnalytics = { monthlyRevenue: [], recentTransactions: [] };
+        let pendingPayouts = { providerPayouts: [], driverPayouts: [] };
+        let filterRole = 'all', filterStatus = 'all', searchTerm = '';
+        let onlineDrivers = [];
+        let darkMode = false;
+        let sidebarCollapsed = false;
+        let selectedRefund = null;
+        let stats = { users: { total: 0 }, bookings: { total: 0, completed: 0, pending: 0 }, payments: { totalRevenue: 0 }, platform: { rating: 4.8 } };
+
+        async function fetchWithToken(url, options = {}) {
+            const response = await fetch(url, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, ...options.headers }
+            });
+            if (response.status === 401) { handleLogout(); throw new Error('Session expired'); }
+            return response;
+        }
+
+        function checkAuth() {
+            if (!token) { showLogin(); return false; }
+            return true;
+        }
+
+        function showLogin() {
+            document.getElementById('content').innerHTML = `
+                <div class="card" style="max-width:450px; margin:80px auto; text-align:center;">
+                    <div class="logo-icon" style="margin:0 auto 20px; width:60px; height:60px; font-size:30px;">👑</div>
+                    <h2>Admin Login</h2>
+                    <input type="email" id="loginEmail" placeholder="Email" value="admin@carcareconnect.com" style="width:100%; padding:12px; margin:10px 0; border-radius:12px;">
+                    <input type="password" id="loginPassword" placeholder="Password" value="password123" style="width:100%; padding:12px; margin:10px 0; border-radius:12px;">
+                    <button onclick="adminLogin()" style="width:100%; padding:12px; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; border-radius:12px; cursor:pointer;">Login</button>
+                    <div id="loginError" style="color:red; margin-top:16px;"></div>
+                </div>
+            `;
+        }
+
+        async function adminLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            try {
+                const res = await fetch(`${API_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, role: 'admin' })
+                });
+                const data = await res.json();
+                if (data.success && data.token) {
+                    localStorage.setItem('adminToken', data.token);
+                    localStorage.setItem('adminUser', JSON.stringify(data.user));
+                    token = data.token;
+                    const user = data.user;
+                    document.getElementById('adminAvatar').textContent = (user.firstName?.[0] || 'A') + (user.lastName?.[0] || 'D');
+                    await loadDashboard();
+                } else {
+                    document.getElementById('loginError').innerText = data.message || 'Invalid credentials';
+                }
+            } catch(err) {
+                document.getElementById('loginError').innerText = 'Error: ' + err.message;
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUser');
+            token = null;
+            showLogin();
+        }
+
+        function toggleSidebar() {
+            sidebarCollapsed = !sidebarCollapsed;
+            document.getElementById('sidebar').classList.toggle('collapsed', sidebarCollapsed);
+        }
+
+        function toggleDarkMode() {
+            darkMode = !darkMode;
+            document.body.classList.toggle('dark', darkMode);
+            document.querySelector('.theme-toggle').textContent = darkMode ? '☀️' : '🌙';
+        }
+
+        async function loadDashboard() {
+            if (!checkAuth()) return;
+            await fetchAll();
+            loadTab('dashboard');
+        }
+
+        async function fetchAll() {
+            if (!token) return;
+            try { const res = await fetchWithToken(`${API_URL}/api/admin/stats`); const data = await res.json(); if (data.success) stats = data.stats; } catch(e) {}
+            try { const res = await fetchWithToken(`${API_URL}/api/admin/users`); const data = await res.json(); if (data.success) allUsers = data.users; } catch(e) {}
+            try { const res = await fetchWithToken(`${API_URL}/api/admin/bookings`); const data = await res.json(); if (data.success) allBookings = data.bookings; } catch(e) {}
+            try { const res = await fetchWithToken(`${API_URL}/api/admin/services`); const data = await res.json(); if (data.success) allServices = data.services; } catch(e) {}
+            try { const res = await fetchWithToken(`${API_URL}/api/admin/payment-analytics`); const data = await res.json(); if (data.success) paymentAnalytics = data.analytics; } catch(e) {}
+            try { const res = await fetchWithToken(`${API_URL}/api/admin/pending-payouts`); const data = await res.json(); if (data.success) pendingPayouts = data; } catch(e) {}
+            try { const res = await fetchWithToken(`${API_URL}/api/refunds/all`); const data = await res.json(); if (data.success) allRefunds = data.refunds; } catch(e) {}
+            try { const res = await fetchWithToken(`${API_URL}/api/reviews/all`); const data = await res.json(); if (data.success) allReviews = data.reviews; } catch(e) {}
+            try { const res = await fetchWithToken(`${API_URL}/api/promo/all`); const data = await res.json(); if (data.success) allPromoCodes = data.promoCodes; } catch(e) {}
+            try { const res = await fetch(`${API_URL}/api/loyalty/leaderboard`); const data = await res.json(); if (data.success) allLoyalty = data.leaderboard; } catch(e) {}
+            try { const res = await fetch(`${API_URL}/api/driver/online`); const data = await res.json(); if (data.success) onlineDrivers = data.drivers || []; } catch(e) {}
+        }
+
+        function getRoleBadge(role) {
+            const colors = { customer: '#d1fae5', provider: '#e0e7ff', driver: '#fef3c7' };
+            const textColors = { customer: '#065f46', provider: '#4338ca', driver: '#92400e' };
+            return `<span style="background:${colors[role]}; color:${textColors[role]}; padding:4px 12px; border-radius:30px; font-size:11px;">${role}</span>`;
+        }
+
+        function getStatusBadge(status) {
+            const classes = { pending: 'badge-pending', confirmed: 'badge-confirmed', 'in-progress': 'badge-progress', completed: 'badge-completed', cancelled: 'badge-cancelled' };
+            return `<span class="badge ${classes[status] || 'badge-pending'}">${status}</span>`;
+        }
+
+        function renderDashboard() {
+            const totalRevenue = stats.payments?.totalRevenue || 0;
+            const totalUsers = stats.users?.total || allUsers.length;
+            const totalBookings = stats.bookings?.total || allBookings.length;
+            const completedBookings = stats.bookings?.completed || allBookings.filter(b => b.status === 'completed').length;
+            const monthlyRevenue = paymentAnalytics.monthlyRevenue || [];
+            const maxRevenue = Math.max(...monthlyRevenue.map(m => m.revenue), 1000);
+            document.getElementById('content').innerHTML = `
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-value">$${totalRevenue.toLocaleString()}</div><div class="stat-label">Total Revenue</div></div>
+                    <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-value">${totalUsers}</div><div class="stat-label">Total Users</div></div>
+                    <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-value">${totalBookings}</div><div class="stat-label">Total Bookings</div></div>
+                    <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-value">${completedBookings}</div><div class="stat-label">Completed</div></div>
+                </div>
+                <div class="online-card"><div class="card-title">Online Drivers (${onlineDrivers.length})</div><div class="driver-list">${onlineDrivers.length === 0 ? '<span class="driver-item">No drivers online</span>' : onlineDrivers.map(d => `<div class="driver-item"><span class="online-dot"></span> ${d.name || d.firstName || 'Driver'}</div>`).join('')}</div></div>
+                <div class="card"><div class="card-header"><div class="card-title">Monthly Revenue</div></div><div class="chart-container">${monthlyRevenue.map(m => `<div class="chart-bar"><div class="bar-fill" style="height:${(m.revenue / maxRevenue) * 150}px"></div><span>${m.month}</span><small>$${m.revenue || 0}</small></div>`).join('')}</div></div>
+                <div class="card"><div class="card-header"><div class="card-title">Recent Users</div></div><div class="table-wrapper"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead><tbody>${allUsers.slice(0,5).map(u => `<tr><td>${u.firstName || ''} ${u.lastName || ''}</td><td>${u.email}</td><td>${getRoleBadge(u.role)}</td></tr>`).join('')}</tbody></table></div></div>
+            `;
+        }
+
+        function renderUsers() {
+            let filtered = allUsers.filter(u => (filterRole === 'all' || u.role === filterRole) && (!searchTerm || u.email.toLowerCase().includes(searchTerm.toLowerCase())));
+            document.getElementById('content').innerHTML = `
+                <div class="card"><div class="card-header"><div class="card-title">User Management</div><div class="filters"><select class="filter-select" id="roleFilter" onchange="filterRoleChange()"><option value="all">All</option><option value="customer">Customers</option><option value="provider">Providers</option><option value="driver">Drivers</option></select><input type="text" class="filter-input" id="searchInput" placeholder="Search..." onkeyup="filterSearch()"></div></div>
+                <div class="table-wrapper"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead><tbody>${filtered.map(u => `<tr><td>${u.firstName || ''} ${u.lastName || ''}</td><td>${u.email}</td><td>${getRoleBadge(u.role)}</td><td>${u.isActive ? '<span style="color:#10b981;">Active</span>' : '<span style="color:#ef4444;">Suspended</span>'}</td><td><button class="btn-sm ${u.isActive ? 'btn-danger' : 'btn-success'}" onclick="updateUserStatus(\'${u._id}\', ${!u.isActive})">${u.isActive ? 'Suspend' : 'Activate'}</button><button class="btn-sm btn-warning" onclick="deleteUser(\'${u._id}\')">Delete</button></td></tr>`).join('')}</tbody></table></div></div>
+            `;
+            if (document.getElementById('roleFilter')) document.getElementById('roleFilter').value = filterRole;
+        }
+
+        function renderBookings() {
+            let filtered = allBookings.filter(b => filterStatus === 'all' || b.status === filterStatus);
+            document.getElementById('content').innerHTML = `
+                <div class="card"><div class="card-header"><div class="card-title">Booking Management</div><div class="filters"><select class="filter-select" id="statusFilter" onchange="filterStatusChange()"><option value="all">All</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="in-progress">In Progress</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div></div>
+                <div class="table-wrapper"><table><thead><tr><th>Service</th><th>Customer</th><th>Provider</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>${filtered.map(b => `<tr><td>${b.serviceName || '-'}</td><td>${b.customerId?.firstName || '-'} ${b.customerId?.lastName || ''}</td><td>${b.providerId?.businessName || b.providerId?.firstName || '-'}</td><td>${new Date(b.bookingDate).toLocaleDateString()}</td><td>$${b.totalAmount || 0}</td><td>${getStatusBadge(b.status)}</td></tr>`).join('')}</tbody></table></div></div>
+            `;
+            if (document.getElementById('statusFilter')) document.getElementById('statusFilter').value = filterStatus;
+        }
+
+        function renderServices() {
+            document.getElementById('content').innerHTML = `
+                <div class="card"><div class="card-header"><div class="card-title">Service Management</div></div>
+                <div class="table-wrapper"><table><thead><tr><th>Name</th><th>Provider</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead><tbody>${allServices.map(s => `<tr><td>${s.name}</td><td>${s.providerId?.businessName || s.providerId?.firstName}</td><td>$${s.price}</td><td>${s.isActive ? '<span class="badge badge-active">Active</span>' : '<span class="badge badge-inactive">Hidden</span>'}</td><td><button class="btn-sm ${s.isActive ? 'btn-danger' : 'btn-success'}" onclick="toggleService(\'${s._id}\', ${s.isActive})">${s.isActive ? 'Hide' : 'Show'}</button></td></tr>`).join('')}</tbody></table></div></div>
+            `;
+        }
+
+        function renderPayouts() {
+            document.getElementById('content').innerHTML = `
+                <div class="card"><div class="card-header"><div class="card-title">Provider Payouts</div></div>${pendingPayouts.providerPayouts?.length ? pendingPayouts.providerPayouts.map(p => `<div class="pending-item"><span><strong>${p.name}</strong> - ${p.count} bookings</span><span style="color:#10b981;">$${p.amount}</span><button class="btn-sm btn-success" onclick="processPayout('${p.id}','provider')">Process</button></div>`).join('') : '<div class="empty-state">No pending provider payouts</div>'}</div>
+                <div class="card"><div class="card-header"><div class="card-title">Driver Payouts</div></div>${pendingPayouts.driverPayouts?.length ? pendingPayouts.driverPayouts.map(d => `<div class="pending-item"><span><strong>${d.name}</strong> - ${d.count} deliveries</span><span style="color:#10b981;">$${d.amount}</span><button class="btn-sm btn-success" onclick="processPayout('${d.id}','driver')">Process</button></div>`).join('') : '<div class="empty-state">No pending driver payouts</div>'}</div>
+            `;
+        }
+
+        function renderRefunds() {
+            document.getElementById('content').innerHTML = `
+                <div class="card"><div class="card-header"><div class="card-title">Refund Requests</div></div>
+                <div class="table-wrapper"></table><thead><tr><th>Customer</th><th>Service</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody>${allRefunds.map(r => `<tr><td>${r.customerId?.firstName || '-'} ${r.customerId?.lastName || ''}</td><td>${r.bookingId?.serviceName || '-'}</td><td>$${r.amount}</td><td>${getStatusBadge(r.status)}</td><td>${r.status === 'pending' ? `<button class="btn-sm btn-purple" onclick='openRefundModal(${JSON.stringify(r).replace(/'/g, "\\'")})'>Review</button>` : '-'}</td></tr>`).join('')}</tbody></table></div></div>
+            `;
+        }
+
+        function renderReviews() {
+            document.getElementById('content').innerHTML = `
+                <div class="card"><div class="card-header"><div class="card-title">Customer Reviews</div><button class="btn-sm btn-primary" onclick="fetchAll(); loadTab(currentTab);">Refresh</button></div>
+                <div class="table-wrapper"><table><thead><tr><th>Customer</th><th>Provider</th><th>Rating</th><th>Review</th><th>Actions</th></tr></thead><tbody>${allReviews.map(r => `<tr><td>${r.customerId?.firstName || '-'}</td><td>${r.providerId?.businessName || '-'}</td><td>${'★'.repeat(r.providerRating)}</td><td>${(r.providerReview || '').substring(0,50)}</td><td><button class="btn-sm btn-danger" onclick="hideReview('${r._id}')">Hide</button></td></tr>`).join('')}</tbody></table></div></div>
+            `;
+        }
+
+        function renderPromos() {
+            document.getElementById('content').innerHTML = `
+                <div class="card"><div class="card-header"><div class="card-title">Promo Codes</div><button class="btn-sm btn-success" onclick="openPromoModal()">Create Promo</button></div>
+                <div class="table-wrapper"><table><thead><tr><th>Code</th><th>Discount</th><th>Used/Limit</th><th>Valid Until</th><th>Actions</th></tr></thead><tbody>${allPromoCodes.map(p => `<tr><td><strong>${p.code}</strong></td><td>${p.discountType === 'percentage' ? p.discountValue + '%' : '$' + p.discountValue}</td><td>${p.usedCount || 0}/${p.usageLimit}</td><td>${p.validUntil ? new Date(p.validUntil).toLocaleDateString() : 'Never'}</td><td><button class="btn-sm btn-danger" onclick="deletePromoCode('${p._id}','${p.code}')">Delete</button></td></tr>`).join('')}</tbody></table></div></div>
+            `;
+        }
+
+        function renderLoyalty() {
+            document.getElementById('content').innerHTML = `
+                <div class="card"><div class="card-header"><div class="card-title">Loyalty Leaderboard</div></div>
+                <div class="table-wrapper"><table><thead><tr><th>Rank</th><th>User</th><th>Tier</th><th>Points</th></thead><tbody>${allLoyalty.slice(0,10).map((l,i) => `<tr><td>${i+1}${i===0?'🥇':i===1?'🥈':i===2?'🥉':''}</td><td>${l.userId?.firstName || ''} ${l.userId?.lastName || ''}</td><td>${l.tier || 'Bronze'}</td><td>${l.points?.toLocaleString() || 0}</td></tr>`).join('')}</tbody></table></div></div>
+            `;
+        }
+
+        function renderProviders() { renderUsers(); }
+        function renderDrivers() { renderUsers(); }
+        function renderRevenue() { renderDashboard(); }
+
+        async function updateUserStatus(userId, activate) {
+            try { await fetchWithToken(`${API_URL}/api/admin/users/${userId}`, { method: 'PUT', body: JSON.stringify({ isActive: activate }) }); alert(`User ${activate ? 'activated' : 'suspended'}`); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); }
+        }
+        async function deleteUser(userId) {
+            if (confirm('Delete user?')) { try { await fetchWithToken(`${API_URL}/api/admin/users/${userId}`, { method: 'DELETE' }); alert('Deleted'); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); } }
+        }
+        async function toggleService(serviceId, isActive) {
+            try { await fetchWithToken(`${API_URL}/api/admin/services/${serviceId}/status`, { method: 'PATCH', body: JSON.stringify({ isActive: !isActive }) }); alert(`Service ${!isActive ? 'shown' : 'hidden'}`); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); }
+        }
+        async function processPayout(userId, type) {
+            if (confirm(`Process payout?`)) { try { await fetchWithToken(`${API_URL}/api/admin/process-payout`, { method: 'POST', body: JSON.stringify({ userId, type }) }); alert('Processed'); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); } }
+        }
+        async function hideReview(reviewId) {
+            if (confirm('Hide review?')) { try { await fetchWithToken(`${API_URL}/api/reviews/hide/${reviewId}`, { method: 'PUT' }); alert('Hidden'); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); } }
+        }
+        async function deletePromoCode(id, code) {
+            if (confirm(`Delete ${code}?`)) { try { await fetchWithToken(`${API_URL}/api/promo/${id}`, { method: 'DELETE' }); alert('Deleted'); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); } }
+        }
+        function openRefundModal(refund) { selectedRefund = refund; document.getElementById('refundDetails').innerHTML = `<p><strong>Customer:</strong> ${refund.customerId?.firstName}</p><p><strong>Amount:</strong> $${refund.amount}</p><p><strong>Reason:</strong> ${refund.reason}</p>`; document.getElementById('refundModal').classList.add('active'); }
+        function showRejectReason() { document.getElementById('rejectSection').style.display = 'block'; }
+        async function approveRefund() { try { await fetchWithToken(`${API_URL}/api/refunds/${selectedRefund._id}/approve`, { method: 'POST', body: JSON.stringify({ adminNotes: document.getElementById('adminNotes').value }) }); alert('Approved'); closeModal('refundModal'); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); } }
+        async function rejectRefund() { const reason = document.getElementById('rejectionReason').value; if (!reason) { alert('Reason required'); return; } try { await fetchWithToken(`${API_URL}/api/refunds/${selectedRefund._id}/reject`, { method: 'POST', body: JSON.stringify({ rejectionReason: reason }) }); alert('Rejected'); closeModal('refundModal'); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); } }
+        function closeModal(modalId) { document.getElementById(modalId).classList.remove('active'); document.getElementById('rejectSection').style.display = 'none'; selectedRefund = null; }
+        function openPromoModal() { document.getElementById('promoModal').classList.add('active'); }
+        async function createPromoCode() { const code = document.getElementById('promoCode').value.toUpperCase(); const discountValue = parseFloat(document.getElementById('promoValue').value); if (!code || !discountValue) { alert('Code and value required'); return; } try { await fetchWithToken(`${API_URL}/api/promo/create`, { method: 'POST', body: JSON.stringify({ code, description: document.getElementById('promoDesc').value, discountType: document.getElementById('promoType').value, discountValue, minPurchase: parseFloat(document.getElementById('promoMinPurchase').value) || 0, usageLimit: parseInt(document.getElementById('promoLimit').value) || 1, validUntil: document.getElementById('promoValidUntil').value }) }); alert('Created'); closeModal('promoModal'); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); } }
+        function filterRoleChange() { filterRole = document.getElementById('roleFilter').value; renderUsers(); }
+        function filterSearch() { searchTerm = document.getElementById('searchInput').value; renderUsers(); }
+        function filterStatusChange() { filterStatus = document.getElementById('statusFilter').value; renderBookings(); }
+        async function loadTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+            document.querySelector(`.menu-item[data-tab="${tab}"]`).classList.add('active');
+            document.getElementById('pageTitle').innerHTML = tab.charAt(0).toUpperCase() + tab.slice(1);
+            await fetchAll();
+            const renderers = { dashboard: renderDashboard, users: renderUsers, providers: renderProviders, drivers: renderDrivers, bookings: renderBookings, services: renderServices, revenue: renderRevenue, payouts: renderPayouts, refunds: renderRefunds, reviews: renderReviews, promos: renderPromos, loyalty: renderLoyalty };
+            if (renderers[tab]) renderers[tab]();
+        }
+
+        document.querySelectorAll('.menu-item').forEach(el => el.addEventListener('click', () => loadTab(el.dataset.tab)));
+        if (token) { loadDashboard(); } else { showLogin(); }
+        setInterval(() => { if (currentTab === 'dashboard' && token) { fetchAll(); renderDashboard(); } }, 30000);
+    </script>
+</body>
+</html>

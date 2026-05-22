@@ -1,0 +1,94 @@
+import React, { useState, useEffect } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+
+function AdminDashboard({ onLogout }) {
+  const [stats, setStats] = useState({
+    users: { total: 0, customers: 0, providers: 0, drivers: 0 },
+    bookings: { total: 0, completed: 0, pending: 0 }
+  });
+
+  useEffect(() => {
+    const adminToken = localStorage.getItem('adminToken');
+    if (!adminToken) {
+      window.location.href = '/carcare-admin-2026';
+      return;
+    }
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch('http://localhost:5000/api/admin/stats', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStats(data.stats);
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminUser');
+    toast.success('Logged out');
+    window.location.href = '/';
+  };
+
+  return (
+    <div style={{ padding: '20px', minHeight: '100vh', backgroundColor: '#f3f4f6' }}>
+      <ToastContainer />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h1 style={{ color: '#1f2937' }}>Admin Dashboard</h1>
+        <button 
+          onClick={handleLogout}
+          style={{
+            backgroundColor: '#ef4444',
+            color: 'white',
+            border: 'none',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            cursor: 'pointer'
+          }}
+        >
+          Logout
+        </button>
+      </div>
+      
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+        <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px' }}>
+          <h3>Total Users</h3>
+          <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#8b5cf6' }}>{stats.users.total}</p>
+        </div>
+        <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px' }}>
+          <h3>Customers</h3>
+          <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#10b981' }}>{stats.users.customers}</p>
+        </div>
+        <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px' }}>
+          <h3>Providers</h3>
+          <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#f59e0b' }}>{stats.users.providers}</p>
+        </div>
+        <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px' }}>
+          <h3>Drivers</h3>
+          <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#3b82f6' }}>{stats.users.drivers}</p>
+        </div>
+      </div>
+      
+      <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px' }}>
+        <h3>Bookings</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginTop: '16px' }}>
+          <div>
+            <p>Total: <strong>{stats.bookings.total}</strong></p>
+            <p>Completed: <strong>{stats.bookings.completed}</strong></p>
+            <p>Pending: <strong>{stats.bookings.pending}</strong></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default AdminDashboard;

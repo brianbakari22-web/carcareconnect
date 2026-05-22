@@ -1,38 +1,29 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middlewares/auth');
+const { adminOnly } = require('../middlewares/adminOnly');
 const {
   getStats,
-  getAllUsers,
-  updateUser,
+  getUsers,
+  getBookings,
+  getServices,
+  updateUserStatus,
   deleteUser,
-  getAllBookings,
-  getAllServices,
-  toggleServiceStatus,
-  getPaymentAnalytics,
-  getPendingPayouts,
-  processPayout
+  toggleServiceStatus
 } = require('../controllers/adminController');
 
-const isAdmin = (req, res, next) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
-  next();
-};
-
+// Apply admin protection to all routes
 router.use(protect);
-router.use(isAdmin);
+router.use(adminOnly);
 
+// Admin routes
 router.get('/stats', getStats);
-router.get('/users', getAllUsers);
-router.put('/users/:id', updateUser);
+// 
+router.get('/users', getUsers);
+router.get('/bookings', getBookings);
+router.get('/services', getServices);
+router.put('/users/:id', updateUserStatus);
 router.delete('/users/:id', deleteUser);
-router.get('/bookings', getAllBookings);
-router.get('/services', getAllServices);
 router.patch('/services/:id/status', toggleServiceStatus);
-router.get('/payment-analytics', getPaymentAnalytics);
-router.get('/pending-payouts', getPendingPayouts);
-router.post('/process-payout', processPayout);
 
 module.exports = router;

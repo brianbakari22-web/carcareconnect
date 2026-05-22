@@ -1,0 +1,117 @@
+const express = require('express');
+const router = express.Router();
+const { protect } = require('../middlewares/auth');
+
+// Get provider dashboard
+router.get('/dashboard', protect, async (req, res) => {
+  try {
+    const Service = require('../models/Service');
+    const Booking = require('../models/Booking');
+    const User = require('../models/User');
+    
+    const user = await User.findById(req.user.id);
+    const services = await Service.find({ providerId: req.user.id });
+    const bookings = await Booking.find({ providerId: req.user.id })
+      .populate('customerId', 'firstName lastName email phone')
+      .sort({ createdAt: -1 });
+    
+    const completedBookings = bookings.filter(b => b.status === 'completed');
+    const totalRevenue = completedBookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+    const yourEarnings = completedBookings.reduce((sum, b) => sum + (b.totalAmount * 0.7 || 0), 0);
+    const platformFees = completedBookings.reduce((sum, b) => sum + (b.totalAmount * 0.15 || 0), 0);
+    
+    res.json({
+      success: true,
+      data: {
+        profile: {
+          businessName: user.businessName,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          phone: user.phone,
+          address: user.businessAddress,
+          rating: user.averageRating
+        },
+        stats: {
+          totalServices: services.length,
+          totalBookings: bookings.length,
+          completedBookings: completedBookings.length,
+          totalRevenue,
+          yourEarnings,
+          platformFees
+        },
+        services,
+        bookings
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to get dashboard' });
+  }
+});
+
+// Update provider business profile - FIXED to match Driver pattern
+router.put('/business-profile', protect, async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const { businessName, phone, address, businessLicense } = req.body;
+    
+    console.log('Updating provider profile:', { businessName, phone, address });
+    
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { 
+        businessName, 
+        phone, 
+        businessAddress: address, 
+        businessLicense 
+      },
+      { new: true }
+    ).select('-password');
+    
+    console.log('Provider updated - Phone:', user.phone);
+    
+    res.json({ success: true, user });
+  } catch (error) {
+    console.error('Update provider error:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// Get bank account
+router.get('/bank-account', protect, async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const user = await User.findById(req.user.id);
+    res.json({ success: true, bankAccount: user.bankAccount });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get bank account' });
+  }
+});
+
+// Save bank account
+router.post('/bank-account', protect, async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const { accountName, accountNumber, bankName, routingNumber } = req.body;
+    await User.findByIdAndUpdate(req.user.id, {
+      bankAccount: { accountName, accountNumber, bankName, routingNumber, lastUpdated: new Date() }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to save bank account' });
+  }
+});
+
+// Delete bank account
+router.delete('/bank-account', protect, async (req, res) => {
+  try {
+    const User = require('../models/User');
+    await User.findByIdAndUpdate(req.user.id, { bankAccount: null });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete bank account' });
+  }
+});
+
+module.exports = router;

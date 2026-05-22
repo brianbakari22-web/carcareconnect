@@ -21,22 +21,22 @@ function DiscoveryPage({ user, onBack }) {
     setLoading(true);
     try {
       // Fetch providers
-      const providersRes = await fetch('https://carcareconnect-backend.onrender.com/api/discovery/providers');
+      const providersRes = await fetch('http://localhost:5000/api/discovery/providers');
       const providersData = await providersRes.json();
       if (providersData.success) setProviders(providersData.providers);
 
       // Fetch drivers
-      const driversRes = await fetch('https://carcareconnect-backend.onrender.com/api/discovery/drivers');
+      const driversRes = await fetch('http://localhost:5000/api/discovery/drivers');
       const driversData = await driversRes.json();
       if (driversData.success) setDrivers(driversData);
 
       // Fetch services
-      const servicesRes = await fetch('https://carcareconnect-backend.onrender.com/api/discovery/services');
+      const servicesRes = await fetch('http://localhost:5000/api/discovery/services');
       const servicesData = await servicesRes.json();
       if (servicesData.success) setServices(servicesData.services);
 
       // Fetch stats
-      const statsRes = await fetch('https://carcareconnect-backend.onrender.com/api/discovery/stats');
+      const statsRes = await fetch('http://localhost:5000/api/discovery/stats');
       const statsData = await statsRes.json();
       if (statsData.success) setStats(statsData.stats);
     } catch (error) {
@@ -48,7 +48,7 @@ function DiscoveryPage({ user, onBack }) {
 
   const getProviderDetails = async (providerId) => {
     try {
-      const res = await fetch(`https://carcareconnect-backend.onrender.com/api/discovery/providers/${providerId}`);
+      const res = await fetch(`http://localhost:5000/api/discovery/providers/${providerId}`);
       const data = await res.json();
       if (data.success) setSelectedProvider(data);
     } catch (error) {
@@ -58,7 +58,7 @@ function DiscoveryPage({ user, onBack }) {
 
   const getDriverDetails = async (driverId) => {
     try {
-      const res = await fetch(`https://carcareconnect-backend.onrender.com/api/discovery/drivers/${driverId}`);
+      const res = await fetch(`http://localhost:5000/api/discovery/drivers/${driverId}`);
       const data = await res.json();
       if (data.success) setSelectedDriver(data);
     } catch (error) {

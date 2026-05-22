@@ -1,0 +1,9 @@
+// Add this to your App.js - this creates a secret URL for admin
+// After adding, you can access admin at: http://localhost:3000/carcare-admin-2026
+
+// In App.js, add this import at the top:
+// import AdminDashboard from './pages/AdminDashboard';
+// import FounderLogin from './pages/FounderLogin';
+
+// Then add this route inside your Routes component:
+// <Route path="/carcare-admin-2026" element={<FounderLogin onLogin={handleAdminLogin} />} />

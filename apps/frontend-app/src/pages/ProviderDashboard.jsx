@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useSocket } from '../hooks/useSocket';
+import WhatsAppButton from '../components/WhatsAppButton';
+import { StatCard, ModernButton, Badge } from '../components/ModernUI';
 import { initializePushNotifications, requestNotificationPermission, sendPushNotification } from '../utils/pushNotifications';
+
 function ProviderDashboard({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [services, setServices] = useState([]);
@@ -29,11 +32,18 @@ function ProviderDashboard({ user, onLogout }) {
   const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [newBookingAlert, setNewBookingAlert] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [averageRating, setAverageRating] = useState(0);
+  const [totalReviews, setTotalReviews] = useState(0);
+  const [showReplyModal, setShowReplyModal] = useState(false);
+  const [selectedReviewForReply, setSelectedReviewForReply] = useState(null);
+  const [replyText, setReplyText] = useState('');
   
-  // Chat State
-    const [bankAccount, setBankAccount] = useState({
+  const [bankAccount, setBankAccount] = useState({
     accountName: '',
     accountNumber: '',
     bankName: '',
@@ -64,7 +74,7 @@ function ProviderDashboard({ user, onLogout }) {
     businessName: businessProfile.businessName,
     ownerName: businessProfile.ownerName,
     email: businessProfile.email,
-    phone: businessProfile.phone,
+    phone: businessProfile.phone || '',
     address: businessProfile.address,
     taxId: businessProfile.taxId
   });
@@ -89,7 +99,35 @@ function ProviderDashboard({ user, onLogout }) {
 
   const token = localStorage.getItem('token');
 
-  // WebSocket integration
+  const fetchUserProfile = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        setBusinessProfile(prev => ({
+          ...prev,
+          businessName: data.user.businessName || prev.businessName,
+          email: data.user.email || prev.email,
+          phone: data.user.phone || '',
+          address: data.user.businessAddress || prev.address,
+          taxId: data.user.businessLicense || prev.taxId
+        }));
+        setEditProfileData(prev => ({
+          ...prev,
+          businessName: data.user.businessName || prev.businessName,
+          email: data.user.email || prev.email,
+          phone: data.user.phone || '',
+          address: data.user.businessAddress || prev.address,
+          taxId: data.user.businessLicense || prev.taxId
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
   const { 
     isConnected,
     updateBookingStatus,
@@ -98,16 +136,15 @@ function ProviderDashboard({ user, onLogout }) {
     joinBookingRoom
   } = useSocket();
 
-  // Initialize push notifications
   useEffect(() => {
     initializePushNotifications();
+    fetchUserProfile();
   }, []);
 
-  // Fetch unread chat count
   useEffect(() => {
     const fetchUnreadCount = async () => {
       try {
-        const res = await fetch('https://carcareconnect-backend.onrender.com/api/chat/unread/count', {
+        const res = await fetch('http://localhost:5000/api/chat/unread/count', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
@@ -165,6 +202,12 @@ function ProviderDashboard({ user, onLogout }) {
     checkStripeStatus();
   }, []);
 
+  useEffect(() => {
+    if (activeTab === 'reviews') {
+      fetchProviderReviews();
+    }
+  }, [activeTab]);
+
   const fetchAllData = async () => {
     setLoading(true);
     try {
@@ -177,9 +220,28 @@ function ProviderDashboard({ user, onLogout }) {
     }
   };
 
+  const fetchProviderReviews = async () => {
+    setReviewsLoading(true);
+    try {
+      const res = await fetch('http://localhost:5000/api/reviews/my-reviews', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setReviews(data.reviews);
+        setAverageRating(data.averageRating);
+        setTotalReviews(data.totalReviews);
+      }
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
   const fetchServices = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/services/provider/my-services', {
+      const res = await fetch('http://localhost:5000/api/services/provider/my-services', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -189,7 +251,7 @@ function ProviderDashboard({ user, onLogout }) {
 
   const fetchBookings = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/services/provider/bookings', {
+      const res = await fetch('http://localhost:5000/api/services/provider/bookings', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -199,7 +261,7 @@ function ProviderDashboard({ user, onLogout }) {
 
   const fetchEarnings = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/payments/provider/earnings', {
+      const res = await fetch('http://localhost:5000/api/payments/provider/earnings', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -214,7 +276,7 @@ function ProviderDashboard({ user, onLogout }) {
   const fetchPayoutHistory = async () => {
     setLoadingPayouts(true);
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/payments/provider/payout-history', {
+      const res = await fetch('http://localhost:5000/api/payments/provider/payout-history', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -229,7 +291,7 @@ function ProviderDashboard({ user, onLogout }) {
 
   const fetchBankAccount = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/provider/bank-account', {
+      const res = await fetch('http://localhost:5000/api/provider/bank-account', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -244,7 +306,7 @@ function ProviderDashboard({ user, onLogout }) {
     e.preventDefault();
     setLoadingBank(true);
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/provider/bank-account', {
+      const res = await fetch('http://localhost:5000/api/provider/bank-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(bankAccount)
@@ -264,7 +326,7 @@ function ProviderDashboard({ user, onLogout }) {
   const deleteBankAccount = async () => {
     if (window.confirm('Remove bank account?')) {
       try {
-        const res = await fetch('https://carcareconnect-backend.onrender.com/api/provider/bank-account', {
+        const res = await fetch('http://localhost:5000/api/provider/bank-account', {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -280,7 +342,7 @@ function ProviderDashboard({ user, onLogout }) {
 
   const checkStripeStatus = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/stripe/account-status', {
+      const res = await fetch('http://localhost:5000/api/stripe/account-status', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -291,7 +353,7 @@ function ProviderDashboard({ user, onLogout }) {
   const connectStripe = async () => {
     setLoadingStripe(true);
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/stripe/onboarding-link', {
+      const res = await fetch('http://localhost:5000/api/stripe/onboarding-link', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -304,7 +366,7 @@ function ProviderDashboard({ user, onLogout }) {
   const disconnectStripe = async () => {
     if (window.confirm('Disconnect Stripe?')) {
       try {
-        const res = await fetch('https://carcareconnect-backend.onrender.com/api/stripe/disconnect', {
+        const res = await fetch('http://localhost:5000/api/stripe/disconnect', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -320,31 +382,39 @@ function ProviderDashboard({ user, onLogout }) {
   const updateProfile = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/provider/business-profile', {
+      const res = await fetch('http://localhost:5000/api/provider/business-profile', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 
+          'Content-Type': 'application/json', 
+          'Authorization': `Bearer ${token}` 
+        },
         body: JSON.stringify({
           businessName: editProfileData.businessName,
-          businessAddress: editProfileData.address,
-          businessLicense: editProfileData.taxId,
-          phone: editProfileData.phone
+          phone: editProfileData.phone,
+          address: editProfileData.address,
+          businessLicense: editProfileData.taxId
         })
       });
+      
       const data = await res.json();
       if (data.success) {
-        toast.success('Profile updated!');
+        toast.success('Profile updated successfully!');
         setBusinessProfile({
           ...businessProfile,
           businessName: editProfileData.businessName,
+          phone: editProfileData.phone,
           address: editProfileData.address,
-          taxId: editProfileData.taxId,
-          phone: editProfileData.phone
+          taxId: editProfileData.taxId
         });
         setShowEditProfileModal(false);
+        fetchUserProfile();
       } else {
-        toast.error(data.error || 'Failed to update');
+        toast.error(data.error || 'Failed to update profile');
       }
-    } catch (error) { toast.error('Failed to update'); }
+    } catch (error) {
+      console.error('Update error:', error);
+      toast.error('Failed to update profile');
+    }
   };
 
   const handleServiceSubmit = async (e) => {
@@ -360,10 +430,10 @@ function ProviderDashboard({ user, onLogout }) {
         inclusions: serviceForm.inclusions.split(',').map(i => i.trim())
       };
 
-      let url = 'https://carcareconnect-backend.onrender.com/api/services';
+      let url = 'http://localhost:5000/api/services';
       let method = 'POST';
       if (editingService) {
-        url = `https://carcareconnect-backend.onrender.com/api/services/${editingService._id}`;
+        url = `http://localhost:5000/api/services/${editingService._id}`;
         method = 'PUT';
       }
 
@@ -388,7 +458,7 @@ function ProviderDashboard({ user, onLogout }) {
   const handleDeleteService = async (serviceId) => {
     if (window.confirm('Delete this service?')) {
       try {
-        const res = await fetch(`https://carcareconnect-backend.onrender.com/api/services/${serviceId}`, {
+        const res = await fetch(`http://localhost:5000/api/services/${serviceId}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -403,7 +473,7 @@ function ProviderDashboard({ user, onLogout }) {
 
   const handleToggleStatus = async (serviceId) => {
     try {
-      const res = await fetch(`https://carcareconnect-backend.onrender.com/api/services/${serviceId}/toggle-status`, {
+      const res = await fetch(`http://localhost:5000/api/services/${serviceId}/toggle-status`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -435,7 +505,7 @@ function ProviderDashboard({ user, onLogout }) {
   const handleUpdateBookingStatus = async (bookingId, status) => {
     try {
       updateBookingStatus(bookingId, status);
-      const res = await fetch(`https://carcareconnect-backend.onrender.com/api/services/provider/bookings/${bookingId}/status`, {
+      const res = await fetch(`http://localhost:5000/api/services/provider/bookings/${bookingId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ status })
@@ -459,7 +529,7 @@ function ProviderDashboard({ user, onLogout }) {
       return;
     }
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/payments/provider/payout', {
+      const res = await fetch('http://localhost:5000/api/payments/provider/payout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ amount: parseFloat(payoutAmount) })
@@ -479,7 +549,7 @@ function ProviderDashboard({ user, onLogout }) {
 
   const downloadInvoice = async (paymentId) => {
     try {
-      const res = await fetch(`https://carcareconnect-backend.onrender.com/api/invoices/download/${paymentId}`, {
+      const res = await fetch(`http://localhost:5000/api/invoices/download/${paymentId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -503,7 +573,7 @@ function ProviderDashboard({ user, onLogout }) {
       cancelled: { bg: '#fee2e2', color: '#991b1b', icon: '❌', label: 'Cancelled' }
     };
     const c = config[status] || { bg: '#f3f4f6', color: '#6b7280', icon: '📌', label: status };
-    return <span style={{ backgroundColor: c.bg, color: c.color, padding: '4px 10px', borderRadius: '20px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>{c.icon} {c.label}</span>;
+    return <Badge status={status}>{c.icon} {c.label}</Badge>;
   };
 
   const totalRevenue = earnings.totalRevenue || 0;
@@ -513,7 +583,7 @@ function ProviderDashboard({ user, onLogout }) {
   const pendingBookings = bookings.filter(b => b.status === 'pending').length;
   const firstPaymentId = recentPayments.length > 0 ? recentPayments[0]._id : null;
 
-    const menuItems = [
+  const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊', color: '#8b5cf6' },
     { id: 'services', label: 'Services', icon: '🛠️', color: '#10b981' },
     { id: 'bookings', label: 'Bookings', icon: '📅', color: '#ec4899' },
@@ -529,33 +599,21 @@ function ProviderDashboard({ user, onLogout }) {
       width: sidebarCollapsed ? '80px' : '280px',
       backgroundColor: darkMode ? '#1e293b' : '#ffffff',
       transition: 'width 0.3s ease',
-      position: 'fixed',
-      height: '100vh',
-      overflow: 'hidden',
-      zIndex: 100,
-      boxShadow: '2px 0 8px rgba(0,0,0,0.05)'
+      position: 'fixed', height: '100vh', overflow: 'hidden', zIndex: 100, boxShadow: '2px 0 8px rgba(0,0,0,0.05)'
     },
     sidebarHeader: {
       padding: sidebarCollapsed ? '20px 0' : '24px 24px',
       borderBottom: '1px solid ' + (darkMode ? '#334155' : '#e5e7eb'),
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: sidebarCollapsed ? 'center' : 'space-between'
+      display: 'flex', alignItems: 'center', justifyContent: sidebarCollapsed ? 'center' : 'space-between'
     },
     logoIcon: { fontSize: '28px' },
     logoText: { fontSize: '18px', fontWeight: 'bold', marginLeft: '10px', display: sidebarCollapsed ? 'none' : 'block', color: darkMode ? 'white' : '#1f2937' },
     collapseBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', display: sidebarCollapsed ? 'none' : 'block' },
     sidebarMenu: { flex: 1, padding: '20px 0' },
     menuItem: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-      padding: sidebarCollapsed ? '12px 0' : '12px 24px',
-      margin: '4px 8px',
-      borderRadius: '10px',
-      cursor: 'pointer',
-      transition: 'all 0.2s ease',
-      justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+      display: 'flex', alignItems: 'center', gap: '12px',
+      padding: sidebarCollapsed ? '12px 0' : '12px 24px', margin: '4px 8px', borderRadius: '10px', cursor: 'pointer',
+      transition: 'all 0.2s ease', justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
       color: darkMode ? '#94a3b8' : '#6b7280'
     },
     menuItemActive: { backgroundColor: darkMode ? '#8b5cf620' : '#8b5cf610', color: '#8b5cf6' },
@@ -563,15 +621,9 @@ function ProviderDashboard({ user, onLogout }) {
     menuLabel: { fontSize: '14px', fontWeight: '500', display: sidebarCollapsed ? 'none' : 'block' },
     mainContent: { flex: 1, marginLeft: sidebarCollapsed ? '80px' : '280px', transition: 'margin-left 0.3s ease' },
     topHeader: {
-      backgroundColor: darkMode ? '#1e293b' : '#ffffff',
-      padding: '16px 30px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      borderBottom: '1px solid ' + (darkMode ? '#334155' : '#e5e7eb'),
-      position: 'sticky',
-      top: 0,
-      zIndex: 99
+      backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '16px 30px',
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      borderBottom: '1px solid ' + (darkMode ? '#334155' : '#e5e7eb'), position: 'sticky', top: 0, zIndex: 99
     },
     headerTitle: { fontSize: '20px', fontWeight: 'bold', color: darkMode ? 'white' : '#1f2937' },
     headerRight: { display: 'flex', alignItems: 'center', gap: '20px' },
@@ -579,37 +631,26 @@ function ProviderDashboard({ user, onLogout }) {
     notificationBadge: { position: 'absolute', top: '-8px', right: '-8px', backgroundColor: '#ef4444', color: 'white', fontSize: '10px', padding: '2px 6px', borderRadius: '10px' },
     themeToggle: { background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '8px', borderRadius: '8px', backgroundColor: darkMode ? '#334155' : '#f3f4f6' },
     wsBadge: { backgroundColor: isConnected ? '#10b981' : '#ef4444', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', color: 'white', display: 'flex', alignItems: 'center', gap: '5px' },
-        userInfo: { display: 'flex', alignItems: 'center', gap: '15px' },
+    userInfo: { display: 'flex', alignItems: 'center', gap: '15px' },
     avatar: { width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white' },
     userName: { fontWeight: '500', color: darkMode ? 'white' : '#374151' },
     logoutBtn: { backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' },
-  emailBtn: {
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    border: 'none',
-    padding: '8px 16px',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    textDecoration: 'none',
-    display: 'inline-block',
-    marginTop: '10px',
-    marginRight: '10px'
-  },
+    emailBtn: { backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', textDecoration: 'none', display: 'inline-block', marginTop: '10px', marginRight: '10px' },
     contentArea: { padding: '24px 30px' },
     statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '16px', marginBottom: '24px' },
-    statCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '16px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+    statCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '16px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', transition: 'all 0.3s ease' },
     statValue: { fontSize: '24px', fontWeight: 'bold', color: '#8b5cf6', margin: '8px 0' },
     statLabel: { fontSize: '12px', color: '#6b7280' },
     payoutBtn: { backgroundColor: '#f59e0b', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', marginTop: '5px' },
     twoColumn: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' },
-    card: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '20px', borderRadius: '12px', marginBottom: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+    card: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '20px', borderRadius: '16px', marginBottom: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', transition: 'all 0.3s ease' },
     cardTitle: { fontSize: '16px', fontWeight: 'bold', marginBottom: '15px', color: darkMode ? 'white' : '#374151' },
     activityItem: { display: 'flex', justifyContent: 'space-between', padding: '10px', borderBottom: '1px solid #e5e7eb' },
     paymentItem: { display: 'flex', justifyContent: 'space-between', padding: '8px', borderBottom: '1px solid #e5e7eb', alignItems: 'center', flexWrap: 'wrap' },
-    actionBtn: { backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', marginRight: '10px' },
+    actionBtn: { backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', marginRight: '10px' },
     addBtn: { backgroundColor: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', marginBottom: '20px' },
     servicesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' },
-    serviceCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+    serviceCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '20px', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', transition: 'all 0.3s ease' },
     serviceHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' },
     serviceName: { fontSize: '18px', fontWeight: 'bold', color: darkMode ? 'white' : '#1f2937' },
     serviceDesc: { color: '#6b7280', fontSize: '13px', marginBottom: '12px' },
@@ -619,50 +660,51 @@ function ProviderDashboard({ user, onLogout }) {
     editBtn: { backgroundColor: '#f59e0b', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' },
     toggleBtn: { backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' },
     deleteBtn: { backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' },
-    bookingCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '20px', borderRadius: '12px', marginBottom: '15px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+    bookingCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '20px', borderRadius: '16px', marginBottom: '15px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', transition: 'all 0.3s ease' },
     bookingHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px', flexWrap: 'wrap' },
     bookingDetails: { display: 'flex', gap: '20px', fontSize: '13px', color: '#6b7280', marginBottom: '15px', flexWrap: 'wrap' },
     bookingActions: { display: 'flex', gap: '10px', flexWrap: 'wrap' },
     confirmBtn: { backgroundColor: '#10b981', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' },
     rejectBtn: { backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' },
-    startBtn: { backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' },
-    completeBtn: { backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' },
+    startBtn: { backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' },
+    completeBtn: { backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' },
     earningsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '30px' },
-    earningsCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '20px', borderRadius: '12px', textAlign: 'center' },
-    pendingCard: { backgroundColor: '#fef3c7', padding: '20px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' },
+    earningsCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '20px', borderRadius: '16px', textAlign: 'center' },
+    pendingCard: { backgroundColor: '#fef3c7', padding: '20px', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' },
     pendingAmount: { fontSize: '28px', fontWeight: 'bold', color: '#f59e0b', display: 'block' },
     payoutBtnLarge: { backgroundColor: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' },
-    invoiceBanner: { backgroundColor: '#d1fae5', padding: '15px', borderRadius: '12px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' },
+    invoiceBanner: { backgroundColor: '#d1fae5', padding: '15px', borderRadius: '16px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' },
     payoutItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', borderBottom: '1px solid #e5e7eb', flexWrap: 'wrap', gap: '10px' },
     smallInvoiceBtn: { backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' },
-    profileContainer: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '30px', borderRadius: '12px' },
+    profileContainer: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '30px', borderRadius: '16px' },
     profileAvatar: { width: '100px', height: '100px', borderRadius: '50%', backgroundColor: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', color: 'white', margin: '0 auto 20px' },
     profileInfo: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px', marginBottom: '20px' },
     editProfileBtn: { backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' },
     enableNotificationsBtn: { backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', marginTop: '10px' },
     bankSection: { marginTop: '30px', paddingTop: '20px', borderTop: '1px solid #e5e7eb' },
-    bankCard: { backgroundColor: '#f9fafb', padding: '15px', borderRadius: '10px', marginBottom: '10px' },
+    bankCard: { backgroundColor: '#f9fafb', padding: '15px', borderRadius: '12px', marginBottom: '10px' },
     editBankBtn: { backgroundColor: '#f59e0b', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', marginRight: '10px' },
     deleteBankBtn: { backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' },
-    noBankCard: { backgroundColor: '#fef3c7', padding: '20px', borderRadius: '12px', textAlign: 'center' },
+    noBankCard: { backgroundColor: '#fef3c7', padding: '20px', borderRadius: '16px', textAlign: 'center' },
     addBankBtn: { backgroundColor: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' },
     stripeSection: { marginTop: '30px', paddingTop: '20px', borderTop: '1px solid #e5e7eb' },
-    stripeCard: { backgroundColor: '#e0e7ff', padding: '20px', borderRadius: '12px', display: 'flex', gap: '15px', alignItems: 'flex-start', flexWrap: 'wrap' },
-    stripeSuccessCard: { backgroundColor: '#d1fae5', padding: '20px', borderRadius: '12px', display: 'flex', gap: '15px', alignItems: 'flex-start', flexWrap: 'wrap' },
-    stripePendingCard: { backgroundColor: '#fef3c7', padding: '20px', borderRadius: '12px', display: 'flex', gap: '15px', alignItems: 'flex-start', flexWrap: 'wrap' },
+    stripeCard: { backgroundColor: '#e0e7ff', padding: '20px', borderRadius: '16px', display: 'flex', gap: '15px', alignItems: 'flex-start', flexWrap: 'wrap' },
+    stripeSuccessCard: { backgroundColor: '#d1fae5', padding: '20px', borderRadius: '16px', display: 'flex', gap: '15px', alignItems: 'flex-start', flexWrap: 'wrap' },
+    stripePendingCard: { backgroundColor: '#fef3c7', padding: '20px', borderRadius: '16px', display: 'flex', gap: '15px', alignItems: 'flex-start', flexWrap: 'wrap' },
     connectStripeBtn: { backgroundColor: '#635bff', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', marginTop: '10px', fontWeight: 'bold' },
     disconnectStripeBtn: { backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', marginTop: '10px', fontSize: '12px' },
-    settingsContainer: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '30px', borderRadius: '12px' },
+    settingsContainer: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '30px', borderRadius: '16px' },
     settingsSection: { marginBottom: '30px' },
     saveSettingsBtn: { backgroundColor: '#10b981', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer' },
     modal: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-    modalContent: { backgroundColor: darkMode ? '#1e293b' : 'white', padding: '24px', borderRadius: '12px', maxWidth: '500px', width: '90%', maxHeight: '80vh', overflow: 'auto' },
-    modalContentSmall: { backgroundColor: darkMode ? '#1e293b' : 'white', padding: '24px', borderRadius: '12px', maxWidth: '400px', width: '90%' },
+    modalContent: { backgroundColor: darkMode ? '#1e293b' : 'white', padding: '24px', borderRadius: '16px', maxWidth: '500px', width: '90%', maxHeight: '80vh', overflow: 'auto' },
+    modalContentSmall: { backgroundColor: darkMode ? '#1e293b' : 'white', padding: '24px', borderRadius: '16px', maxWidth: '400px', width: '90%' },
     input: { width: '100%', padding: '10px', marginBottom: '10px', border: '1px solid #d1d5db', borderRadius: '8px', backgroundColor: darkMode ? '#334155' : 'white', color: darkMode ? 'white' : '#374151' },
     textarea: { width: '100%', padding: '10px', marginBottom: '10px', border: '1px solid #d1d5db', borderRadius: '8px', minHeight: '80px', backgroundColor: darkMode ? '#334155' : 'white', color: darkMode ? 'white' : '#374151' },
     modalActions: { display: 'flex', gap: '10px', marginTop: '20px' },
     submitBtn: { backgroundColor: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' },
-    cancelBtn: { backgroundColor: '#6b7280', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }
+    cancelBtn: { backgroundColor: '#6b7280', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' },
+    emptyState: { textAlign: 'center', padding: '40px', color: '#6b7280' }
   };
 
   if (loading) {
@@ -682,7 +724,6 @@ function ProviderDashboard({ user, onLogout }) {
     <div style={styles.container}>
       <ToastContainer position="top-right" />
       
-      {/* Sidebar */}
       <div style={styles.sidebar}>
         <div style={styles.sidebarHeader}>
           <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -711,9 +752,7 @@ function ProviderDashboard({ user, onLogout }) {
         </div>
       </div>
 
-      {/* Main Content */}
       <div style={styles.mainContent}>
-        {/* Top Header */}
         <div style={styles.topHeader}>
           <div style={styles.headerTitle}>
             {menuItems.find(m => m.id === activeTab)?.label || 'Dashboard'}
@@ -731,9 +770,9 @@ function ProviderDashboard({ user, onLogout }) {
               {darkMode ? '☀️' : '🌙'}
             </button>
             <div style={styles.userInfo}>
-              <div style={styles.avatar}>{user?.businessName?.charAt(0) || 'P'}</div>
+              <div style={styles.avatar}>{businessProfile.businessName?.charAt(0) || 'P'}</div>
               <div>
-                <div style={styles.userName}>{user?.businessName || user?.firstName}</div>
+                <div style={styles.userName}>{businessProfile.businessName || user?.firstName}</div>
                 <div style={{ fontSize: '11px', color: '#8b5cf6' }}>Provider</div>
               </div>
               <button style={styles.logoutBtn} onClick={onLogout}>Logout</button>
@@ -741,7 +780,6 @@ function ProviderDashboard({ user, onLogout }) {
           </div>
         </div>
 
-        {/* Notification Dropdown */}
         {showNotifications && (
           <div style={{
             position: 'absolute', top: '70px', right: '30px', width: '350px', backgroundColor: 'white',
@@ -768,9 +806,7 @@ function ProviderDashboard({ user, onLogout }) {
           </div>
         )}
 
-        {/* Content Area */}
         <div style={styles.contentArea}>
-          {/* Stats Cards */}
           <div style={styles.statsGrid}>
             <div style={styles.statCard}><div style={styles.statValue}>${totalRevenue.toLocaleString()}</div><div style={styles.statLabel}>Total Revenue</div></div>
             <div style={styles.statCard}><div style={styles.statValue}>${yourEarnings.toLocaleString()}</div><div style={styles.statLabel}>Your Earnings</div></div>
@@ -780,7 +816,6 @@ function ProviderDashboard({ user, onLogout }) {
             <div style={styles.statCard}><div style={styles.statValue}>${pendingPayoutAmount.toLocaleString()}<button style={styles.payoutBtn} onClick={() => setShowPayoutModal(true)}>Request</button></div><div style={styles.statLabel}>Pending Payout</div></div>
           </div>
 
-          {/* Dashboard Tab */}
           {activeTab === 'dashboard' && (
             <div style={styles.twoColumn}>
               <div>
@@ -815,7 +850,6 @@ function ProviderDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Services Tab */}
           {activeTab === 'services' && (
             <div>
               <button style={styles.addBtn} onClick={() => { setEditingService(null); setServiceForm({ name: '', description: '', category: 'oil-change', price: '', duration: '30', discountedPrice: '', warranty: '', tags: '', requirements: '', inclusions: '' }); setShowServiceModal(true); }}>+ Add Service</button>
@@ -853,7 +887,6 @@ function ProviderDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Bookings Tab with Chat Button */}
           {activeTab === 'bookings' && (
             <div>
               {bookings.map(booking => (
@@ -873,23 +906,32 @@ function ProviderDashboard({ user, onLogout }) {
                     {booking.isConcierge && <span>🚗 Concierge</span>}
                   </div>
                   {booking.status === 'pending' && (
-  <div style={styles.bookingActions}>
-    <button style={styles.confirmBtn} onClick={() => handleUpdateBookingStatus(booking._id, 'confirmed')}>✓ Confirm</button>
-    <button style={styles.rejectBtn} onClick={() => handleUpdateBookingStatus(booking._id, 'cancelled')}>✗ Reject</button>
-  </div>
-)}
-{booking.status === 'confirmed' && (
-  <button style={styles.startBtn} onClick={() => handleUpdateBookingStatus(booking._id, 'in-progress')}>▶ Start Service</button>
-)}
-{booking.status === 'in-progress' && (
-  <button style={styles.completeBtn} onClick={() => handleUpdateBookingStatus(booking._id, 'completed')}>✅ Complete</button>
-)}
-<a href={`https://mail.google.com/mail/?view=cm&fs=1&to=${booking.customerId?.email}&su=Regarding your booking for ${booking.serviceName}&body=Hello%20${booking.customerId?.firstName},%0D%0A%0D%0AThank you for your booking. I wanted to follow up regarding your ${booking.serviceName} scheduled for ${new Date(booking.bookingDate).toLocaleDateString()}.%0D%0A%0D%0APlease let me know if you have any questions.%0D%0A%0D%0ABest regards,%0D%0A${user?.businessName || user?.firstName}`} target="_blank" style={styles.emailBtn}>✉️ Message Customer</a>                </div>
+                    <div style={styles.bookingActions}>
+                      <button style={styles.confirmBtn} onClick={() => handleUpdateBookingStatus(booking._id, 'confirmed')}>✓ Confirm</button>
+                      <button style={styles.rejectBtn} onClick={() => handleUpdateBookingStatus(booking._id, 'cancelled')}>✗ Reject</button>
+                    </div>
+                  )}
+                  {booking.status === 'confirmed' && (
+                    <button style={styles.startBtn} onClick={() => handleUpdateBookingStatus(booking._id, 'in-progress')}>▶ Start Service</button>
+                  )}
+                  {booking.status === 'in-progress' && (
+                    <button style={styles.completeBtn} onClick={() => handleUpdateBookingStatus(booking._id, 'completed')}>✅ Complete</button>
+                  )}
+                  <a href={`https://mail.google.com/mail/?view=cm&fs=1&to=${booking.customerId?.email}&su=Regarding your booking for ${booking.serviceName}&body=Hello%20${booking.customerId?.firstName},%0D%0A%0D%0AThank you for your booking. I wanted to follow up regarding your ${booking.serviceName} scheduled for ${new Date(booking.bookingDate).toLocaleDateString()}.%0D%0A%0D%0APlease let me know if you have any questions.%0D%0A%0D%0ABest regards,%0D%0A${user?.businessName || user?.firstName}`} target="_blank" style={styles.emailBtn}>✉️ Message Customer</a>
+                  
+                  {booking.customerId?.phone && (
+                    <WhatsAppButton 
+                      phoneNumber={booking.customerId.phone}
+                      message={`Hello ${booking.customerId?.firstName}, Thank you for your booking for ${booking.serviceName} on ${new Date(booking.bookingDate).toLocaleDateString()}. Please let me know if you have any questions. Best regards, ${user?.businessName || user?.firstName}`}
+                    >
+                      💬 WhatsApp Customer
+                    </WhatsAppButton>
+                  )}
+                </div>
               ))}
             </div>
           )}
 
-          {/* Earnings Tab */}
           {activeTab === 'earnings' && (
             <div>
               {yourEarnings > 0 && firstPaymentId && (
@@ -920,7 +962,6 @@ function ProviderDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Profile Tab */}
           {activeTab === 'profile' && (
             <div style={styles.profileContainer}>
               <div style={styles.profileAvatar}>{businessProfile.businessName?.charAt(0) || 'P'}</div>
@@ -928,11 +969,20 @@ function ProviderDashboard({ user, onLogout }) {
                 <div><strong>Business Name:</strong> {businessProfile.businessName}</div>
                 <div><strong>Owner:</strong> {businessProfile.ownerName}</div>
                 <div><strong>Email:</strong> {businessProfile.email}</div>
-                <div><strong>Phone:</strong> {businessProfile.phone}</div>
+                <div><strong>Phone:</strong> {businessProfile.phone || 'Not set'}</div>
                 <div><strong>Address:</strong> {businessProfile.address || 'Not set'}</div>
                 <div><strong>Tax ID:</strong> {businessProfile.taxId || 'Not set'}</div>
               </div>
-              <button style={styles.editProfileBtn} onClick={() => setShowEditProfileModal(true)}>✏️ Edit Profile</button>
+              <button style={styles.editProfileBtn} onClick={() => { 
+                setEditProfileData({ 
+                  businessName: businessProfile.businessName, 
+                  email: businessProfile.email, 
+                  phone: businessProfile.phone || '', 
+                  address: businessProfile.address || '', 
+                  taxId: businessProfile.taxId || '' 
+                }); 
+                setShowEditProfileModal(true); 
+              }}>✏️ Edit Profile</button>
               
               <div style={styles.bankSection}>
                 <div style={styles.cardTitle}>🏦 Payout Information</div>
@@ -964,7 +1014,6 @@ function ProviderDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Settings Tab with Push Notifications */}
           {activeTab === 'settings' && (
             <div style={styles.settingsContainer}>
               <div style={styles.cardTitle}>⚙️ Settings</div>
@@ -981,11 +1030,59 @@ function ProviderDashboard({ user, onLogout }) {
               <button style={styles.saveSettingsBtn} onClick={() => toast.success('Settings saved!')}>Save Settings</button>
             </div>
           )}
+
+          {activeTab === 'reviews' && (
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>⭐ Customer Reviews</div>
+              {reviewsLoading ? (
+                <div>Loading reviews...</div>
+              ) : reviews.length === 0 ? (
+                <div style={styles.emptyState}>No reviews yet. Complete services to get customer feedback.</div>
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', padding: '15px', backgroundColor: '#fef3c7', borderRadius: '8px' }}>
+                    <div><strong>Average Rating:</strong> ⭐ {averageRating} / 5</div>
+                    <div><strong>Total Reviews:</strong> {totalReviews}</div>
+                  </div>
+                  {reviews.map(review => (
+                    <div key={review._id} style={{ borderBottom: '1px solid #e5e7eb', padding: '15px 0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                        <div>
+                          <strong>{review.customerId?.firstName} {review.customerId?.lastName}</strong>
+                          <div style={{ color: '#f59e0b', margin: '5px 0' }}>
+                            {'★'.repeat(review.providerRating)}{'☆'.repeat(5 - review.providerRating)}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#6b7280' }}>{new Date(review.createdAt).toLocaleDateString()}</div>
+                        </div>
+                        <div style={{ fontSize: '14px', color: '#374151', maxWidth: '500px' }}>{review.providerReview}</div>
+                        {!review.providerResponse && (
+                          <button 
+                            onClick={() => {
+                              setSelectedReviewForReply(review);
+                              setShowReplyModal(true);
+                            }} 
+                            style={{ backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}
+                          >
+                            Reply
+                          </button>
+                        )}
+                      </div>
+                      {review.providerResponse && (
+                        <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#f3e8ff', borderRadius: '8px' }}>
+                          <strong>Your Response:</strong>
+                          <div>{review.providerResponse}</div>
+                          <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '4px' }}>{new Date(review.providerResponseAt).toLocaleDateString()}</div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Chat Widget */}
-      {/* Modals */}
       {showServiceModal && (
         <div style={styles.modal}>
           <div style={styles.modalContent}>
@@ -1027,10 +1124,11 @@ function ProviderDashboard({ user, onLogout }) {
             <h2 style={{ marginBottom: '20px' }}>Edit Profile</h2>
             <form onSubmit={updateProfile}>
               <input style={styles.input} type="text" placeholder="Business Name" value={editProfileData.businessName} onChange={(e) => setEditProfileData({...editProfileData, businessName: e.target.value})} required />
-              <input style={styles.input} type="text" placeholder="Phone" value={editProfileData.phone} onChange={(e) => setEditProfileData({...editProfileData, phone: e.target.value})} required />
+              <input style={styles.input} type="tel" placeholder="Phone Number" value={editProfileData.phone} onChange={(e) => setEditProfileData({...editProfileData, phone: e.target.value})} required />
               <input style={styles.input} type="text" placeholder="Address" value={editProfileData.address} onChange={(e) => setEditProfileData({...editProfileData, address: e.target.value})} />
+              <input style={styles.input} type="text" placeholder="Tax ID (Optional)" value={editProfileData.taxId} onChange={(e) => setEditProfileData({...editProfileData, taxId: e.target.value})} />
               <div style={styles.modalActions}>
-                <button type="submit" style={styles.submitBtn}>Save</button>
+                <button type="submit" style={styles.submitBtn}>Save Changes</button>
                 <button type="button" style={styles.cancelBtn} onClick={() => setShowEditProfileModal(false)}>Cancel</button>
               </div>
             </form>
@@ -1055,10 +1153,49 @@ function ProviderDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
+
+      {showReplyModal && selectedReviewForReply && (
+        <div style={styles.modal}>
+          <div style={styles.modalContent}>
+            <h2>Reply to Review</h2>
+            <p><strong>Customer:</strong> {selectedReviewForReply.customerId?.firstName} {selectedReviewForReply.customerId?.lastName}</p>
+            <p><strong>Review:</strong> {selectedReviewForReply.providerReview}</p>
+            <textarea
+              style={styles.textarea}
+              rows="4"
+              placeholder="Write your response..."
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+            />
+            <div style={styles.modalActions}>
+              <button onClick={async () => {
+                try {
+                  const res = await fetch(`http://localhost:5000/api/reviews/reply/${selectedReviewForReply._id}`, {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ response: replyText })
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    toast.success('Reply sent!');
+                    setShowReplyModal(false);
+                    setReplyText('');
+                    fetchProviderReviews();
+                  }
+                } catch (error) {
+                  toast.error('Failed to send reply');
+                }
+              }} style={styles.submitBtn}>Send Reply</button>
+              <button onClick={() => setShowReplyModal(false)} style={styles.cancelBtn}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export default ProviderDashboard;
-
-

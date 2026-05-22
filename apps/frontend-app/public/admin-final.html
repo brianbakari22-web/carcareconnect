@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Care Connect - Admin Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f3f4f6;
+        }
+        .admin-container { display: flex; min-height: 100vh; }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: white;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.05);
+            transition: width 0.3s;
+            z-index: 100;
+        }
+        .sidebar.collapsed { width: 80px; }
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .logo { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: bold; }
+        .logo span { font-size: 28px; }
+        .logo-text { color: #1f2937; }
+        .collapse-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            color: #6b7280;
+        }
+        .sidebar.collapsed .logo-text { display: none; }
+        .sidebar.collapsed .menu-label { display: none; }
+        .sidebar.collapsed .menu-item { justify-content: center; padding: 12px 0; }
+        
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 24px;
+            margin: 4px 8px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #6b7280;
+        }
+        .menu-item:hover, .menu-item.active { background: #f3f4f6; color: #8b5cf6; }
+        .menu-icon { font-size: 20px; }
+        .menu-label { font-size: 14px; font-weight: 500; }
+        
+        /* Main Content */
+        .main-content { flex: 1; margin-left: 280px; transition: margin-left 0.3s; }
+        .sidebar.collapsed ~ .main-content { margin-left: 80px; }
+        
+        /* Top Header */
+        .top-header {
+            background: white;
+            padding: 16px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e5e7eb;
+            position: sticky;
+            top: 0;
+            z-index: 99;
+        }
+        .header-title { font-size: 20px; font-weight: bold; color: #1f2937; }
+        .header-right { display: flex; align-items: center; gap: 20px; }
+        .ws-badge {
+            background: #10b981;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            color: white;
+        }
+        .theme-toggle {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            background: #f3f4f6;
+        }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #8b5cf6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        .logout-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        /* Content Area */
+        .content-area { padding: 24px 30px; }
+        
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .stat-value { font-size: 28px; font-weight: bold; color: #8b5cf6; margin: 8px 0; }
+        .stat-label { font-size: 12px; color: #6b7280; }
+        
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .card-title { font-size: 18px; font-weight: bold; color: #1f2937; }
+        
+        /* Online Drivers */
+        .online-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .driver-list { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+        .driver-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f3f4f6;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        .online-dot {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        /* Tables */
+        .table-wrapper { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; font-size: 13px; }
+        th { background: #f9fafb; font-weight: 600; color: #374151; }
+        td { color: #6b7280; }
+        
+        /* Buttons */
+        .btn-sm {
+            padding: 4px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-purple { background: #8b5cf6; color: white; }
+        .btn-primary { background: #3b82f6; color: white; }
+        
+        /* Filters */
+        .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+        .filter-select, .filter-input {
+            padding: 6px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .filter-input { width: 200px; }
+        
+        /* Badges */
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            display: inline-block;
+        }
+        .badge-pending { background: #fef3c7; color: #92400e; }
+        .badge-confirmed { background: #d1fae5; color: #065f46; }
+        .badge-progress { background: #e0e7ff; color: #4338ca; }
+        .badge-completed { background: #d1fae5; color: #065f46; }
+        .badge-cancelled { background: #fee2e2; color: #991b1b; }
+        
+        /* Pending Items */
+        .pending-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .invoice-btn {
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        /* Revenue Grid */
+        .revenue-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .revenue-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .revenue-value { font-size: 24px; font-weight: bold; color: #8b5cf6; }
+        
+        /* Chart */
+        .chart-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            height: 200px;
+            padding: 20px;
+            gap: 10px;
+        }
+        .chart-bar {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            width: 60px;
+        }
+        .bar-fill {
+            width: 30px;
+            background: #8b5cf6;
+            border-radius: 4px;
+            transition: height 0.3s;
+        }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow: auto;
+        }
+        .modal-content input, .modal-content select, .modal-content textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+        
+        /* Empty State */
+        .empty-state { text-align: center; padding: 40px; color: #9ca3af; }
+        .loading { text-align: center; padding: 60px; color: #6b7280; }
+        
+        /* Dark Mode */
+        body.dark { background: #0f172a; }
+        body.dark .sidebar,
+        body.dark .stat-card,
+        body.dark .card,
+        body.dark .online-card,
+        body.dark .revenue-card,
+        body.dark .top-header { background: #1e293b; }
+        body.dark .logo-text,
+        body.dark .header-title,
+        body.dark .card-title { color: white; }
+        body.dark td,
+        body.dark .stat-label { color: #cbd5e1; }
+        body.dark th { background: #334155; color: white; }
+        body.dark .driver-item { background: #334155; color: white; }
+        body.dark .theme-toggle { background: #334155; }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span>👑</span>
+                    <span class="logo-text">Car Care</span>
+                </div>
+                <button class="collapse-btn" onclick="toggleSidebar()">←</button>
+            </div>
+            <div class="menu-item active" data-tab="dashboard">
+                <span class="menu-icon">📊</span>
+                <span class="menu-label">Dashboard</span>
+            </div>
+            <div class="menu-item" data-tab="users">
+                <span class="menu-icon">👥</span>
+                <span class="menu-label">Users</span>
+            </div>
+            <div class="menu-item" data-tab="providers">
+                <span class="menu-icon">🔧</span>
+                <span class="menu-label">Providers</span>
+            </div>
+            <div class="menu-item" data-tab="drivers">
+                <span class="menu-icon">🚗</span>
+                <span class="menu-label">Drivers</span>
+            </div>
+            <div class="menu-item" data-tab="bookings">
+                <span class="menu-icon">📅</span>
+                <span class="menu-label">Bookings</span>
+            </div>
+            <div class="menu-item" data-tab="services">
+                <span class="menu-icon">🛠️</span>
+                <span class="menu-label">Services</span>
+            </div>
+            <div class="menu-item" data-tab="revenue">
+                <span class="menu-icon">💰</span>
+                <span class="menu-label">Revenue</span>
+            </div>
+            <div class="menu-item" data-tab="payouts">
+                <span class="menu-icon">💸</span>
+                <span class="menu-label">Payouts</span>
+            </div>
+            <div class="menu-item" data-tab="refunds">
+                <span class="menu-icon">🔄</span>
+                <span class="menu-label">Refunds</span>
+            </div>
+            <div class="menu-item" data-tab="reviews">
+                <span class="menu-icon">⭐</span>
+                <span class="menu-label">Reviews</span>
+            </div>
+            <div class="menu-item" data-tab="promos">
+                <span class="menu-icon">🎟️</span>
+                <span class="menu-label">Promo Codes</span>
+            </div>
+            <div class="menu-item" data-tab="loyalty">
+                <span class="menu-icon">💎</span>
+                <span class="menu-label">Loyalty</span>
+            </div>
+        </div>
+
+        <div class="main-content" id="mainContent">
+            <div class="top-header">
+                <h1 class="header-title" id="pageTitle">Dashboard</h1>
+                <div class="header-right">
+                    <div class="ws-badge" id="wsBadge">Live</div>
+                    <button class="theme-toggle" onclick="toggleDarkMode()">🌙</button>
+                    <div class="user-info">
+                        <div class="avatar">A</div>
+                        <button class="logout-btn" onclick="logout()">Logout</button>
+                    </div>
+                </div>
+            </div>
+            <div class="content-area" id="content"><div class="loading">Loading dashboard...</div></div>
+        </div>
+    </div>
+
+    <div id="refundModal" class="modal">
+        <div class="modal-content">
+            <h3>Review Refund Request</h3>
+            <div id="refundDetails"></div>
+            <textarea id="adminNotes" placeholder="Admin notes (optional)" rows="3"></textarea>
+            <div class="modal-actions">
+                <button class="btn-sm btn-success" onclick="approveRefund()">Approve</button>
+                <button class="btn-sm btn-danger" onclick="showRejectReason()">Reject</button>
+                <button class="btn-sm" onclick="closeModal('refundModal')">Cancel</button>
+            </div>
+            <div id="rejectSection" style="display:none; margin-top:16px;">
+                <textarea id="rejectionReason" placeholder="Rejection reason (required)" rows="2"></textarea>
+                <button class="btn-sm btn-danger" onclick="rejectRefund()">Confirm Rejection</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="promoModal" class="modal">
+        <div class="modal-content">
+            <h3>Create Promo Code</h3>
+            <input type="text" id="promoCode" placeholder="Code (e.g., WELCOME20)">
+            <input type="text" id="promoDesc" placeholder="Description">
+            <select id="promoType">
+                <option value="percentage">Percentage (%)</option>
+                <option value="fixed">Fixed Amount</option>
+            </select>
+            <input type="number" id="promoValue" placeholder="Discount Value">
+            <input type="number" id="promoMinPurchase" placeholder="Minimum Purchase (optional)">
+            <input type="number" id="promoLimit" placeholder="Usage Limit" value="1">
+            <input type="date" id="promoValidUntil">
+            <div class="modal-actions">
+                <button class="btn-sm btn-success" onclick="createPromoCode()">Create</button>
+                <button class="btn-sm" onclick="closeModal('promoModal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let token = localStorage.getItem('adminToken');
+        let currentTab = 'dashboard';
+        let allUsers = [], allBookings = [], allServices = [], allRefunds = [], allReviews = [], allPromoCodes = [], allLoyalty = [], paymentAnalytics = { monthlyRevenue: [], recentTransactions: [] };
+        let pendingPayouts = { providerPayouts: [], driverPayouts: [] };
+        let filterRole = 'all', filterStatus = 'all', searchTerm = '';
+        let onlineDrivers = [];
+        let darkMode = false;
+        let sidebarCollapsed = false;
+        let selectedRefund = null;
+        let stats = {
+            users: { total: 0, customers: 0, providers: 0, drivers: 0 },
+            bookings: { total: 0, completed: 0, pending: 0, cancelled: 0, weekly: 0 },
+            payments: { totalRevenue: 0, totalCommission: 0, totalProviderPayouts: 0, totalDriverPayouts: 0 },
+            platform: { rating: 4.8 }
+        };
+
+        if (!token) {
+            document.getElementById('content').innerHTML = `
+                <div class="card" style="max-width:400px; margin:50px auto;">
+                    <h3>Admin Login Required</h3>
+                    <input type="email" id="loginEmail" placeholder="Email" value="admin@carcareconnect.com" style="width:100%; padding:10px; margin:10px 0;">
+                    <input type="password" id="loginPassword" placeholder="Password" value="password123" style="width:100%; padding:10px; margin:10px 0;">
+                    <button onclick="adminLogin()" style="width:100%; padding:10px;">Login</button>
+                    <div id="loginError" style="color:red; margin-top:10px;"></div>
+                </div>
+            `;
+        } else {
+            loadDashboard();
+        }
+
+        async function adminLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            try {
+                const res = await fetch('http://localhost:5000/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, role: 'admin' })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    localStorage.setItem('adminToken', data.token);
+                    localStorage.setItem('adminUser', JSON.stringify(data.user));
+                    token = data.token;
+                    loadDashboard();
+                } else {
+                    document.getElementById('loginError').innerText = 'Invalid credentials';
+                }
+            } catch(err) {
+                document.getElementById('loginError').innerText = 'Backend error: ' + err.message;
+            }
+        }
+
+        function toggleSidebar() {
+            sidebarCollapsed = !sidebarCollapsed;
+            document.getElementById('sidebar').classList.toggle('collapsed', sidebarCollapsed);
+            document.getElementById('mainContent').style.marginLeft = sidebarCollapsed ? '80px' : '280px';
+        }
+
+        function toggleDarkMode() {
+            darkMode = !darkMode;
+            document.body.classList.toggle('dark', darkMode);
+        }
+
+        async function loadDashboard() { await fetchAll(); loadTab('dashboard'); }
+
+        async function fetchAll() {
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/stats', { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                if (data.success) stats = data.stats;
+            } catch(e) { console.log('Stats error'); }
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/users', { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                if (data.success) allUsers = data.users;
+            } catch(e) { console.log('Users error'); }
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/bookings', { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                if (data.success) allBookings = data.bookings;
+            } catch(e) { console.log('Bookings error'); }
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/services', { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                if (data.success) allServices = data.services;
+            } catch(e) { console.log('Services error'); }
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/payment-analytics', { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                if (data.success) paymentAnalytics = data.analytics;
+            } catch(e) { console.log('Payment analytics error'); }
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/pending-payouts', { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                if (data.success) pendingPayouts = data;
+            } catch(e) { console.log('Payouts error'); }
+            try {
+                const res = await fetch('http://localhost:5000/api/refunds/all', { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                if (data.success) allRefunds = data.refunds;
+            } catch(e) { console.log('Refunds error'); }
+            try {
+                const res = await fetch('http://localhost:5000/api/reviews/all', { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                if (data.success) allReviews = data.reviews;
+            } catch(e) { console.log('Reviews error'); }
+            try {
+                const res = await fetch('http://localhost:5000/api/promo/all', { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                if (data.success) allPromoCodes = data.promoCodes;
+            } catch(e) { console.log('Promos error'); }
+            try {
+                const res = await fetch('http://localhost:5000/api/loyalty/leaderboard');
+                const data = await res.json();
+                if (data.success) allLoyalty = data.leaderboard;
+            } catch(e) { console.log('Loyalty error'); }
+            try {
+                const res = await fetch('http://localhost:5000/api/driver/online');
+                const data = await res.json();
+                if (data.success) onlineDrivers = data.drivers || [];
+            } catch(e) { console.log('Drivers error'); }
+        }
+
+        function getRoleBadge(role) {
+            const colors = { customer: '#d1fae5', provider: '#e0e7ff', driver: '#fef3c7', admin: '#f3e8ff' };
+            const textColors = { customer: '#065f46', provider: '#4338ca', driver: '#92400e', admin: '#7c3aed' };
+            return `<span style="background:${colors[role] || '#f3f4f6'}; color:${textColors[role] || '#6b7280'}; padding:4px 10px; border-radius:20px; font-size:11px;">${role}</span>`;
+        }
+
+        function getStatusBadge(status) {
+            const colors = { pending: '#fef3c7', confirmed: '#d1fae5', completed: '#d1fae5', cancelled: '#fee2e2' };
+            const textColors = { pending: '#92400e', confirmed: '#065f46', completed: '#065f46', cancelled: '#991b1b' };
+            return `<span class="badge" style="background:${colors[status] || '#f3f4f6'}; color:${textColors[status] || '#6b7280'};">${status}</span>`;
+        }
+
+        function renderDashboard() {
+            const totalRevenue = stats.payments?.totalRevenue || 0;
+            const totalUsers = stats.users?.total || allUsers.length;
+            const customers = stats.users?.customers || allUsers.filter(u=>u.role==='customer').length;
+            const providers = stats.users?.providers || allUsers.filter(u=>u.role==='provider').length;
+            const drivers = stats.users?.drivers || allUsers.filter(u=>u.role==='driver').length;
+            const totalBookings = stats.bookings?.total || allBookings.length;
+            const completedBookings = stats.bookings?.completed || allBookings.filter(b=>b.status==='completed').length;
+            const pendingBookings = stats.bookings?.pending || allBookings.filter(b=>b.status==='pending').length;
+            const weeklyBookings = stats.bookings?.weekly || 0;
+            const avgRating = stats.platform?.rating || 4.8;
+            const monthlyRevenue = paymentAnalytics.monthlyRevenue || [];
+            const maxRevenue = Math.max(...monthlyRevenue.map(m=>m.revenue), 1000);
+
+            let html = `
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-value">$${totalRevenue.toLocaleString()}</div><div class="stat-label">Total Revenue</div></div>
+                    <div class="stat-card"><div class="stat-value">$${(totalRevenue*0.15).toLocaleString()}</div><div class="stat-label">Platform Fee</div></div>
+                    <div class="stat-card"><div class="stat-value">$${(totalRevenue*0.7).toLocaleString()}</div><div class="stat-label">Provider Payouts</div></div>
+                    <div class="stat-card"><div class="stat-value">$${(totalRevenue*0.15).toLocaleString()}</div><div class="stat-label">Driver Payouts</div></div>
+                    <div class="stat-card"><div class="stat-value">${totalUsers}</div><div class="stat-label">Total Users</div></div>
+                    <div class="stat-card"><div class="stat-value">${totalBookings}</div><div class="stat-label">Bookings</div></div>
+                </div>
+                <div class="online-card"><div class="card-title">Online Drivers (${onlineDrivers.length})</div><div class="driver-list">${onlineDrivers.length===0?'No drivers online':onlineDrivers.map(d=>`<div class="driver-item"><span class="online-dot"></span> ${d.name||d.firstName||'Driver'}</div>`).join('')}</div></div>
+                <div class="revenue-grid">
+                    <div class="revenue-card"><div class="revenue-value">${completedBookings}</div><div>Completed</div></div>
+                    <div class="revenue-card"><div class="revenue-value">${pendingBookings}</div><div>Pending</div></div>
+                    <div class="revenue-card"><div class="revenue-value">${weeklyBookings}</div><div>Weekly</div></div>
+                    <div class="revenue-card"><div class="revenue-value">${avgRating}</div><div>Avg Rating</div></div>
+                </div>
+                <div class="card"><div class="card-header"><div class="card-title">Monthly Revenue Chart</div></div><div class="chart-container">${monthlyRevenue.map(m=>`<div class="chart-bar"><div class="bar-fill" style="height:${(m.revenue/maxRevenue)*150}px;"></div><span>${m.month}</span><small>$${m.revenue||0}</small></div>`).join('')}</div></div>
+                <div class="card"><div class="card-header"><div class="card-title">Recent Users</div></div><div class="table-wrapper"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead><tbody>${allUsers.slice(0,5).map(u=>`<tr><td>${u.firstName||''} ${u.lastName||''}</td><td>${u.email}</td><td>${getRoleBadge(u.role)}</td></tr>`).join('')}</tbody></table></div></div>
+                <div class="card"><div class="card-header"><div class="card-title">Recent Bookings</div></div><div class="table-wrapper"><table><thead><tr><th>Service</th><th>Customer</th><th>Status</th><th>Amount</th></tr></thead><tbody>${allBookings.slice(0,5).map(b=>`<tr><td>${b.serviceName||'-'}</td><td>${b.customerId?.firstName||'-'}</td><td>${getStatusBadge(b.status)}</td><td>$${b.totalAmount||0}</td></tr>`).join('')}</tbody></table></div></div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderUsers() {
+            let filtered = allUsers.filter(u=>(filterRole==='all'||u.role===filterRole)&&(!searchTerm||u.email.toLowerCase().includes(searchTerm.toLowerCase())));
+            let html = `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">User Management</div>
+                        <div class="filters">
+                            <select class="filter-select" id="roleFilter" onchange="filterRoleChange()">
+                                <option value="all">All Roles</option>
+                                <option value="customer">Customers</option>
+                                <option value="provider">Providers</option>
+                                <option value="driver">Drivers</option>
+                            </select>
+                            <input type="text" class="filter-input" id="searchInput" placeholder="Search..." onkeyup="filterSearch()">
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr>
+                            </thead>
+                            <tbody>
+                                ${filtered.map(u=>`
+                                    <tr>
+                                        <td><strong>${u.firstName||''} ${u.lastName||''}</strong>${u.businessName?`<br><small>${u.businessName}</small>`:''}</td>
+                                        <td>${u.email}</td>
+                                        <td>${getRoleBadge(u.role)}</td>
+                                        <td>${u.isActive?'Active':'Suspended'}</td>
+                                        <td>
+                                            <button class="btn-sm btn-danger" onclick="updateUserStatus('${u._id}',${!u.isActive})">${u.isActive?'Suspend':'Activate'}</button>
+                                            ${(u.role==='provider'||u.role==='driver')&&!u.isVerified?`<button class="btn-sm btn-success" onclick="verifyUser('${u._id}','${u.role}')">Verify</button>`:''}
+                                            <button class="btn-sm btn-purple" onclick="deleteUser('${u._id}')">Delete</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+            if(document.getElementById('roleFilter')) document.getElementById('roleFilter').value = filterRole;
+            if(document.getElementById('searchInput')) document.getElementById('searchInput').value = searchTerm;
+        }
+
+        function renderProviders() {
+            let providers = allUsers.filter(u=>u.role==='provider');
+            let html = `
+                <div class="card">
+                    <div class="card-header"><div class="card-title">Provider Management</div></div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead><tr><th>Business</th><th>Owner</th><th>Email</th><th>Verified</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                ${providers.map(p=>`
+                                    <tr>
+                                        <td><strong>${p.businessName||p.firstName}</strong></td>
+                                        <td>${p.firstName||''} ${p.lastName||''}</td>
+                                        <td>${p.email}</td>
+                                        <td>${p.isVerified?'Verified':'Pending'}</td>
+                                        <td>
+                                            ${!p.isVerified?`<button class="btn-sm btn-success" onclick="verifyUser('${p._id}','Provider')">Verify</button>`:''}
+                                            <button class="btn-sm btn-danger" onclick="updateUserStatus('${p._id}',false)">Suspend</button>
+                                            <button class="btn-sm btn-purple" onclick="deleteUser('${p._id}')">Delete</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderDrivers() {
+            let drivers = allUsers.filter(u=>u.role==='driver');
+            let html = `
+                <div class="card">
+                    <div class="card-header"><div class="card-title">Driver Management</div></div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead><tr><th>Name</th><th>Email</th><th>Vehicle</th><th>Verified</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                ${drivers.map(d=>`
+                                    <tr>
+                                        <td>${d.firstName||''} ${d.lastName||''}</td>
+                                        <td>${d.email}</td>
+                                        <td>${d.vehicleModel||'N/A'}</td>
+                                        <td>${d.isVerified?'Verified':'Pending'}</td>
+                                        <td>
+                                            ${!d.isVerified?`<button class="btn-sm btn-success" onclick="verifyUser('${d._id}','Driver')">Verify</button>`:''}
+                                            <button class="btn-sm btn-danger" onclick="updateUserStatus('${d._id}',false)">Suspend</button>
+                                            <button class="btn-sm btn-purple" onclick="deleteUser('${d._id}')">Delete</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderBookings() {
+            let filtered = allBookings.filter(b=>filterStatus==='all'||b.status===filterStatus);
+            let html = `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Booking Management</div>
+                        <select class="filter-select" id="statusFilter" onchange="filterStatusChange()">
+                            <option value="all">All</option>
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="table-wrapper">
+                        </table>
+                            <thead>
+                                <tr><th>Service</th><th>Customer</th><th>Provider</th><th>Date</th><th>Amount</th><th>Status</th><th>Invoice</th></tr>
+                            </thead>
+                            <tbody>
+                                ${filtered.map(b=>`
+                                    <tr>
+                                        <td>${b.serviceName||'-'}</td>
+                                        <td>${b.customerId?.firstName||'-'} ${b.customerId?.lastName||''}</td>
+                                        <td>${b.providerId?.businessName||b.providerId?.firstName||'-'}</td>
+                                        <td>${new Date(b.bookingDate).toLocaleDateString()}</td>
+                                        <td>$${b.totalAmount||0}</td>
+                                        <td>${getStatusBadge(b.status)}</td>
+                                        <td><button class="invoice-btn" onclick="downloadInvoice('${b._id}')">Invoice</button></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+            if(document.getElementById('statusFilter')) document.getElementById('statusFilter').value = filterStatus;
+        }
+
+        function renderServices() {
+            let html = `
+                <div class="card">
+                    <div class="card-header"><div class="card-title">Service Management</div></div>
+                    <div class="table-wrapper">
+                        </table>
+                            <thead><tr><th>Name</th><th>Provider</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                ${allServices.map(s=>`
+                                    <tr>
+                                        <td>${s.name}</td>
+                                        <td>${s.providerId?.businessName||s.providerId?.firstName}</td>
+                                        <td>$${s.price}</td>
+                                        <td>${s.isActive?'Active':'Hidden'}</td>
+                                        <td><button class="btn-sm ${s.isActive?'btn-danger':'btn-success'}" onclick="toggleService('${s._id}',${s.isActive})">${s.isActive?'Hide':'Show'}</button></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderRevenue() {
+            let totalRevenue = stats.payments?.totalRevenue || 0;
+            let recentTransactions = paymentAnalytics.recentTransactions || [];
+            let html = `
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-value">$${totalRevenue.toLocaleString()}</div><div class="stat-label">Total Revenue</div></div>
+                    <div class="stat-card"><div class="stat-value">$${(totalRevenue*0.15).toLocaleString()}</div><div class="stat-label">Platform Fee</div></div>
+                    <div class="stat-card"><div class="stat-value">$${(totalRevenue*0.7).toLocaleString()}</div><div class="stat-label">Provider Payouts</div></div>
+                    <div class="stat-card"><div class="stat-value">$${(totalRevenue*0.15).toLocaleString()}</div><div class="stat-label">Driver Payouts</div></div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><div class="card-title">Recent Transactions</div></div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr><th>Service</th><th>Customer</th><th>Amount</th><th>Date</th><th>Invoice</th></tr>
+                            </thead>
+                            <tbody>
+                                ${recentTransactions.map(t=>`
+                                    <tr>
+                                        <td>${t.bookingId?.serviceName||'-'}</td>
+                                        <td>${t.customerId?.firstName||'-'} ${t.customerId?.lastName||''}</td>
+                                        <td>$${t.amount}</td>
+                                        <td>${new Date(t.paidAt).toLocaleDateString()}</td>
+                                        <td><button class="invoice-btn" onclick="downloadInvoice('${t._id}')">Download</button></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderPayouts() {
+            let html = `
+                <div class="card"><div class="card-header"><div class="card-title">Provider Payouts</div></div>
+                ${pendingPayouts.providerPayouts?.length?pendingPayouts.providerPayouts.map(p=>`<div class="pending-item"><span><strong>${p.name}</strong> (${p.count} bookings)</span><span style="font-weight:bold; color:#10b981;">$${p.amount}</span><button class="btn-sm btn-success" onclick="processPayout('${p.id}','provider')">Process</button></div>`).join(''):'<div class="empty-state">No pending provider payouts</div>'}
+                </div>
+                <div class="card"><div class="card-header"><div class="card-title">Driver Payouts</div></div>
+                ${pendingPayouts.driverPayouts?.length?pendingPayouts.driverPayouts.map(d=>`<div class="pending-item"><span><strong>${d.name}</strong> (${d.count} deliveries)</span><span style="font-weight:bold; color:#10b981;">$${d.amount}</span><button class="btn-sm btn-success" onclick="processPayout('${d.id}','driver')">Process</button></div>`).join(''):'<div class="empty-state">No pending driver payouts</div>'}
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderRefunds() {
+            let pendingCount = allRefunds.filter(r=>r.status==='pending').length;
+            let html = `
+                <div class="card">
+                    <div class="card-header"><div class="card-title">Refund Requests ${pendingCount>0?`<span style="background:#ef4444; color:white; padding:2px 8px; border-radius:20px; font-size:11px;">${pendingCount} pending</span>`:''}</div></div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead><tr><th>Customer</th><th>Service</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                ${allRefunds.map(r=>`
+                                    <tr>
+                                        <td>${r.customerId?.firstName||'-'} ${r.customerId?.lastName||''}<br><small>${r.customerId?.email||''}</small></td>
+                                        <td>${r.bookingId?.serviceName||'-'}</td>
+                                        <td>$${r.amount}</td>
+                                        <td>${r.status}</td>
+                                        <td>${r.status==='pending'?`<button class="btn-sm btn-purple" onclick="openRefundModal(${JSON.stringify(r).replace(/"/g, '&quot;')})">Review</button>`:'-'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderReviews() {
+            let html = `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Customer Reviews</div>
+                        <button class="btn-sm btn-primary" onclick="fetchAllReviews(); loadTab(currentTab);">Refresh</button>
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead><tr><th>Customer</th><th>Provider</th><th>Rating</th><th>Review</th><th>Date</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                ${allReviews.map(r=>`
+                                    <tr>
+                                        <td>${r.customerId?.firstName||'-'} ${r.customerId?.lastName||''}</td>
+                                        <td>${r.providerId?.businessName||r.providerId?.firstName||'-'}</td>
+                                        <td>${'★'.repeat(r.providerRating)}${'☆'.repeat(5-r.providerRating)} (<strong>${r.providerRating}/5</strong>)</td>
+                                        <td>${(r.providerReview||'').substring(0,80)}${(r.providerReview||'').length>80?'...':''}</td>
+                                        <td>${new Date(r.createdAt).toLocaleDateString()}</td>
+                                        <td><button class="btn-sm btn-danger" onclick="hideReview('${r._id}')">Hide</button></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderPromos() {
+            let html = `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Promo Codes</div>
+                        <button class="btn-sm btn-success" onclick="openPromoModal()">Create Promo Code</button>
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr><th>Code</th><th>Description</th><th>Discount</th><th>Used / Limit</th><th>Valid Until</th><th>Status</th><th>Actions</th></tr>
+                            </thead>
+                            <tbody>
+                                ${allPromoCodes.map(p=>`
+                                    <tr>
+                                        <td><strong>${p.code}</strong></td>
+                                        <td>${p.description||'-'}</td>
+                                        <td>${p.discountType==='percentage'?`${p.discountValue}%`:`$${p.discountValue}`}</td>
+                                        <td>${p.usedCount||0} / ${p.usageLimit}</td>
+                                        <td>${p.validUntil?new Date(p.validUntil).toLocaleDateString():'Never'}</td>
+                                        <td>${p.isActive?'Active':'Inactive'}</td>
+                                        <td><button class="btn-sm btn-danger" onclick="deletePromoCode('${p._id}','${p.code}')">Delete</button></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderLoyalty() {
+            let totalPoints = allLoyalty.reduce((s,l)=>s+(l.lifetimePoints||0),0);
+            let avgPoints = allLoyalty.length?Math.round(totalPoints/allLoyalty.length):0;
+            let html = `
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-value">${totalPoints.toLocaleString()}</div><div class="stat-label">Total Points</div></div>
+                    <div class="stat-card"><div class="stat-value">${allLoyalty.length}</div><div class="stat-label">Active Users</div></div>
+                    <div class="stat-card"><div class="stat-value">${avgPoints.toLocaleString()}</div><div class="stat-label">Average Points</div></div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><div class="card-title">Loyalty Leaderboard</div></div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr><th>Rank</th><th>User</th><th>Tier</th><th>Points</th><th>Lifetime Points</th></tr>
+                            </thead>
+                            <tbody>
+                                ${allLoyalty.slice(0,10).map((l,i)=>`
+                                    <tr>
+                                        <td>${i+1}${i===0?' 🥇':i===1?' 🥈':i===2?' 🥉':''}</td>
+                                        <td>${l.userId?.firstName||''} ${l.userId?.lastName||''}${l.userId?.businessName?`<br><small>${l.userId.businessName}</small>`:''}</td>
+                                        <td><span style="background:${l.tier==='Platinum'?'#e0e7ff':l.tier==='Gold'?'#fef3c7':'#f3e8ff'}; color:${l.tier==='Platinum'?'#4338ca':l.tier==='Gold'?'#92400e':'#7c3aed'}; padding:4px 8px; border-radius:20px; font-size:11px;">${l.tier||'Bronze'}</span></td>
+                                        <td>${l.points?.toLocaleString()||0}</td>
+                                        <td>${l.lifetimePoints?.toLocaleString()||0}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        // Action functions
+        async function updateUserStatus(userId, activate) {
+            try { await fetch(`http://localhost:5000/api/admin/users/${userId}`,{method:'PUT',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({isActive:activate})}); alert(`User ${activate?'activated':'suspended'}`); await fetchAll(); loadTab(currentTab); } catch(e){alert('Error');} }
+        async function verifyUser(userId, role) {
+            try { await fetch(`http://localhost:5000/api/admin/users/${userId}`,{method:'PUT',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({isVerified:true})}); alert(`${role} verified!`); await fetchAll(); loadTab(currentTab); } catch(e){alert('Error');} }
+        async function deleteUser(userId) { if(confirm('Delete user?')) { try { await fetch(`http://localhost:5000/api/admin/users/${userId}`,{method:'DELETE',headers:{'Authorization':`Bearer ${token}`}}); alert('User deleted'); await fetchAll(); loadTab(currentTab); } catch(e){alert('Error');} } }
+        async function toggleService(serviceId, isActive) { try { await fetch(`http://localhost:5000/api/admin/services/${serviceId}/status`,{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({isActive:!isActive})}); alert(`Service ${!isActive?'activated':'hidden'}`); await fetchAll(); loadTab(currentTab); } catch(e){alert('Error');} }
+        async function processPayout(userId, type) { try { await fetch('http://localhost:5000/api/admin/process-payout',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({userId,type})}); alert('Payout processed'); await fetchAll(); loadTab(currentTab); } catch(e){alert('Error');} }
+        async function hideReview(reviewId) { if(confirm('Hide this review?')) { try { await fetch(`http://localhost:5000/api/reviews/hide/${reviewId}`,{method:'PUT',headers:{'Authorization':`Bearer ${token}`}}); alert('Review hidden'); await fetchAll(); loadTab(currentTab); } catch(e){alert('Error');} } }
+        async function deletePromoCode(id, code) { if(confirm(`Delete "${code}"?`)) { try { await fetch(`http://localhost:5000/api/promo/${id}`,{method:'DELETE',headers:{'Authorization':`Bearer ${token}`}}); alert('Promo code deleted'); await fetchAll(); loadTab(currentTab); } catch(e){alert('Error');} } }
+        async function downloadInvoice(transactionId) { try { const res = await fetch(`http://localhost:5000/api/invoices/download/${transactionId}`,{headers:{'Authorization':`Bearer ${token}`}}); if(res.ok){ const blob = await res.blob(); window.open(URL.createObjectURL(blob),'_blank'); } } catch(e){alert('Error');} }
+
+        function openRefundModal(refund) {
+            selectedRefund = refund;
+            document.getElementById('refundDetails').innerHTML = `<p><strong>Customer:</strong> ${refund.customerId?.firstName||'-'} ${refund.customerId?.lastName||''}</p><p><strong>Email:</strong> ${refund.customerId?.email||'-'}</p><p><strong>Service:</strong> ${refund.bookingId?.serviceName||'-'}</p><p><strong>Amount:</strong> $${refund.amount||0}</p><p><strong>Reason:</strong> ${refund.reason||'-'}</p>`;
+            document.getElementById('refundModal').classList.add('active');
+        }
+        function showRejectReason() { document.getElementById('rejectSection').style.display = 'block'; }
+        async function approveRefund() {
+            const notes = document.getElementById('adminNotes').value;
+            try { const res = await fetch(`http://localhost:5000/api/refunds/${selectedRefund._id}/approve`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({adminNotes:notes})}); const data = await res.json(); if(data.success){ alert('Refund approved!'); closeModal('refundModal'); await fetchRefunds(); loadTab(currentTab); } else alert(data.error||'Failed'); } catch(e){alert('Error');}
+        }
+        async function rejectRefund() {
+            const reason = document.getElementById('rejectionReason').value;
+            if(!reason){alert('Rejection reason required');return;}
+            try { const res = await fetch(`http://localhost:5000/api/refunds/${selectedRefund._id}/reject`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({rejectionReason:reason})}); const data = await res.json(); if(data.success){ alert('Refund rejected'); closeModal('refundModal'); await fetchRefunds(); loadTab(currentTab); } else alert(data.error||'Failed'); } catch(e){alert('Error');}
+        }
+        function closeModal(modalId) { document.getElementById(modalId).classList.remove('active'); document.getElementById('rejectSection').style.display='none'; selectedRefund=null; }
+        function openPromoModal() { document.getElementById('promoModal').classList.add('active'); }
+        async function createPromoCode() {
+            const code = document.getElementById('promoCode').value.toUpperCase();
+            const description = document.getElementById('promoDesc').value;
+            const discountType = document.getElementById('promoType').value;
+            const discountValue = parseFloat(document.getElementById('promoValue').value);
+            const minPurchase = parseFloat(document.getElementById('promoMinPurchase').value)||0;
+            const usageLimit = parseInt(document.getElementById('promoLimit').value)||1;
+            const validUntil = document.getElementById('promoValidUntil').value;
+            if(!code||!discountValue){alert('Code and value required');return;}
+            try { const res = await fetch('http://localhost:5000/api/promo/create',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({code,description,discountType,discountValue,minPurchase,usageLimit,validUntil})}); const data = await res.json(); if(data.success){ alert('Promo code created!'); closeModal('promoModal'); await fetchPromoCodes(); loadTab(currentTab); } else alert(data.error); } catch(e){alert('Error');}
+        }
+
+        function filterRoleChange() { filterRole = document.getElementById('roleFilter').value; renderUsers(); }
+        function filterSearch() { searchTerm = document.getElementById('searchInput').value; renderUsers(); }
+        function filterStatusChange() { filterStatus = document.getElementById('statusFilter').value; renderBookings(); }
+
+        async function loadTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.menu-item').forEach(el=>el.classList.remove('active'));
+            document.querySelector(`.menu-item[data-tab="${tab}"]`).classList.add('active');
+            document.getElementById('pageTitle').innerText = tab.charAt(0).toUpperCase() + tab.slice(1);
+            await fetchAll();
+            if(tab==='dashboard') renderDashboard();
+            else if(tab==='users') renderUsers();
+            else if(tab==='providers') renderProviders();
+            else if(tab==='drivers') renderDrivers();
+            else if(tab==='bookings') renderBookings();
+            else if(tab==='services') renderServices();
+            else if(tab==='revenue') renderRevenue();
+            else if(tab==='payouts') renderPayouts();
+            else if(tab==='refunds') renderRefunds();
+            else if(tab==='reviews') renderReviews();
+            else if(tab==='promos') renderPromos();
+            else if(tab==='loyalty') renderLoyalty();
+        }
+
+        function logout() {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUser');
+            location.reload();
+        }
+
+        document.querySelectorAll('.menu-item').forEach(el=>el.addEventListener('click',()=>loadTab(el.dataset.tab)));
+        setInterval(()=>{if(currentTab==='dashboard'){fetchAll();renderDashboard();}},30000);
+        loadTab('dashboard');
+    </script>
+</body>
+</html>

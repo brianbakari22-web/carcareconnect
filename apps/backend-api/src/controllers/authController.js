@@ -1,15 +1,15 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
-const generateToken = (userId, role, email) => {
+const generateToken = (id, role, email) => {
   return jwt.sign(
-    { id: userId, role: role, email: email },
+    { id, role, email },
     process.env.JWT_SECRET || 'carcareconnect_secret_key_2024',
     { expiresIn: '30d' }
   );
 };
 
-// Register ANY user - No restrictions
+// Register ANY user - No restrictions except admin
 const register = async (req, res) => {
   try {
     const {
@@ -29,6 +29,11 @@ const register = async (req, res) => {
     } = req.body;
 
     console.log('Registration attempt:', { email, role, firstName, lastName });
+
+    // BLOCK admin registration - Only founder can create admin
+    if (role === 'admin') {
+      return res.status(403).json({ error: 'Admin accounts cannot be created via registration. Contact founder.' });
+    }
 
     // Validate required fields
     if (!email || !password || !firstName || !lastName || !phone || !role) {
@@ -123,45 +128,33 @@ const register = async (req, res) => {
   }
 };
 
-// Login ANY user - No restrictions
+// Login user
 const login = async (req, res) => {
   try {
     const { email, password, role } = req.body;
 
-    console.log('Login attempt:', { email, role });
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    // Log admin login attempts for security
+    if (role === 'admin') {
+      console.log(`⚠️ Admin login attempt from ${req.ip} at ${new Date().toISOString()}`);
     }
 
-    // Find user by email
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
-      console.log('User not found:', email);
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    console.log('User found:', { id: user._id, role: user.role });
-
-    // Check if account is active
-    if (!user.isActive) {
-      return res.status(401).json({ error: 'Account is suspended. Please contact support.' });
+    if (user.role !== role) {
+      return res.status(401).json({ error: `No ${role} account found with this email` });
     }
 
-    // Verify password
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      console.log('Invalid password for:', email);
-      return res.status(401).json({ error: 'Invalid email or password' });
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    console.log('Login successful for:', email);
-
-    // Update last active
     user.lastActive = new Date();
     await user.save();
 
-    // Generate token
     const token = generateToken(user._id, user.role, user.email);
 
     res.json({
@@ -174,49 +167,23 @@ const login = async (req, res) => {
         lastName: user.lastName,
         role: user.role,
         isVerified: user.isVerified,
-        businessName: user.businessName,
-        isOnline: user.isOnline
+        businessName: user.businessName
       }
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed. Please try again.' });
+    res.status(500).json({ error: 'Login failed' });
   }
 };
 
 // Get current user
 const getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    const user = await User.findById(req.user.id).select('-password');
     res.json({ success: true, user });
   } catch (error) {
     res.status(500).json({ error: 'Failed to get user' });
   }
 };
 
-// Check if email exists
-const checkEmail = async (req, res) => {
-  try {
-    const { email } = req.query;
-    const user = await User.findOne({ email: email.toLowerCase() });
-    res.json({ exists: !!user });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to check email' });
-  }
-};
-
-// Check if phone exists
-const checkPhone = async (req, res) => {
-  try {
-    const { phone } = req.query;
-    const user = await User.findOne({ phone });
-    res.json({ exists: !!user });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to check phone' });
-  }
-};
-
-module.exports = { register, login, getMe, checkEmail, checkPhone };
+module.exports = { register, login, getMe };

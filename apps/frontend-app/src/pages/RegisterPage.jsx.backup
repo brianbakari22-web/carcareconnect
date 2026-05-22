@@ -1,0 +1,658 @@
+import React, { useState } from 'react';
+
+function RegisterPage({ role, onBack, onRegisterComplete }) {
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    firstName: '',
+    lastName: '',
+    phone: '',
+    businessName: '',
+    businessLicense: '',
+    businessAddress: '',
+    driversLicense: '',
+    vehicleModel: '',
+    vehicleColor: '',
+    vehiclePlate: '',
+    address: ''
+  });
+
+  const [emailValid, setEmailValid] = useState(null);
+  const [phoneValid, setPhoneValid] = useState(null);
+  const [passwordMatch, setPasswordMatch] = useState(true);
+
+  const roleTitles = {
+    customer: 'Customer Registration',
+    provider: 'Service Provider Registration',
+    driver: 'Driver Registration',
+    admin: 'Admin Registration'
+  };
+
+  const roleIcons = {
+    customer: '👤',
+    provider: '🔧',
+    driver: '🚗',
+    admin: '👑'
+  };
+
+  const checkEmailExists = async (email) => {
+    if (email.length < 3) return;
+    try {
+      const res = await fetch(`http://localhost:5000/api/auth/check-email?email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+      setEmailValid(!data.exists);
+    } catch (error) {
+      console.error('Error checking email:', error);
+    }
+  };
+
+  const checkPhoneExists = async (phone) => {
+    if (phone.length < 5) return;
+    try {
+      const res = await fetch(`http://localhost:5000/api/auth/check-phone?phone=${encodeURIComponent(phone)}`);
+      const data = await res.json();
+      setPhoneValid(!data.exists);
+    } catch (error) {
+      console.error('Error checking phone:', error);
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    if (name === 'email') checkEmailExists(value);
+    if (name === 'phone') checkPhoneExists(value);
+    if (name === 'confirmPassword') {
+      setPasswordMatch(value === formData.password);
+    }
+    if (name === 'password') {
+      setPasswordMatch(value === formData.confirmPassword);
+    }
+  };
+
+  const validateStep1 = () => {
+    if (!formData.email) { setError('Email is required'); return false; }
+    if (emailValid === false) { setError('Email already exists'); return false; }
+    if (!formData.password) { setError('Password is required'); return false; }
+    if (formData.password.length < 6) { setError('Password must be at least 6 characters'); return false; }
+    if (!passwordMatch) { setError('Passwords do not match'); return false; }
+    if (!formData.firstName) { setError('First name is required'); return false; }
+    if (!formData.lastName) { setError('Last name is required'); return false; }
+    if (!formData.phone) { setError('Phone number is required'); return false; }
+    if (phoneValid === false) { setError('Phone number already registered'); return false; }
+    return true;
+  };
+
+  const validateStep2 = () => {
+    if (role === 'provider') {
+      if (!formData.businessName) { setError('Business name is required'); return false; }
+    }
+    if (role === 'driver') {
+      if (!formData.driversLicense) { setError("Driver's license is required"); return false; }
+    }
+    return true;
+  };
+
+  const handleNext = () => {
+    setError('');
+    if (validateStep1()) {
+      setStep(2);
+    }
+  };
+
+  const handleBack = () => {
+    setError('');
+    setStep(1);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateStep2()) return;
+    
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const payload = {
+  firstName: formData.firstName,
+  lastName: formData.lastName,
+  email: formData.email,
+  password: formData.password,
+  confirmPassword: formData.confirmPassword,
+  phone: formData.phone,                    // ← ADD
+  taxId: formData.taxId,                    // ← ADD
+  businessLicense: formData.businessLicense, // ← ADD
+  role: formData.role,
+  businessName: formData.businessName,
+  address: formData.address,
+  driversLicense: formData.driversLicense,
+  vehicleModel: formData.vehicleModel,
+  vehicleColor: formData.vehicleColor,
+  vehiclePlate: formData.vehiclePlate
+};
+      if (role === 'provider') {
+        payload.businessName = formData.businessName;
+        payload.businessLicense = formData.businessLicense;
+        payload.businessAddress = formData.businessAddress;
+      }
+      if (role === 'driver') {
+        payload.driversLicense = formData.driversLicense;
+        payload.vehicleModel = formData.vehicleModel;
+        payload.vehicleColor = formData.vehicleColor;
+        payload.vehiclePlate = formData.vehiclePlate;
+      }
+      if (role === 'customer') {
+        payload.address = formData.address;
+      }
+
+      console.log('Sending registration payload:', payload);
+
+      const response = await fetch('http://localhost:5000/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+      console.log('Registration response:', data);
+
+      if (response.ok) {
+        setSuccess(data.message || 'Registration successful!');
+        
+        // Auto redirect after 2 seconds
+        setTimeout(() => {
+          // Call the parent function to go back to login
+          onRegisterComplete();
+        }, 2000);
+      } else {
+        setError(data.error || 'Registration failed');
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('Registration error:', err);
+      setError('Network error. Make sure backend is running on port 5000');
+      setLoading(false);
+    }
+  };
+
+  // If success, show success message and don't show form
+  if (success && !error) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.card}>
+          <div style={styles.successContainer}>
+            <span style={styles.successIcon}>🎉</span>
+            <h2>Account Created Successfully!</h2>
+            <p>{success}</p>
+            <p style={styles.redirectText}>Redirecting you to login...</p>
+            <button onClick={onRegisterComplete} style={styles.redirectButton}>
+              Go to Login Now
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.container}>
+      <div style={styles.card}>
+        <button onClick={onBack} style={styles.backButton}>← Back to Role Select</button>
+        
+        <div style={styles.header}>
+          <span style={styles.roleIcon}>{roleIcons[role]}</span>
+          <h2 style={styles.title}>{roleTitles[role]}</h2>
+          <p style={styles.subtitle}>Step {step} of 2</p>
+        </div>
+
+        <div style={styles.progressBar}>
+          <div style={{ ...styles.progressFill, width: step === 1 ? '50%' : '100%' }}></div>
+        </div>
+
+        {error && <div style={styles.error}>{error}</div>}
+
+        <form onSubmit={handleSubmit}>
+          {step === 1 && (
+            <div>
+              <div style={styles.sectionTitle}>📝 Basic Information</div>
+              
+              <div style={styles.row}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>First Name *</label>
+                  <input
+                    type="text"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    style={styles.input}
+                    required
+                  />
+                </div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Last Name *</label>
+                  <input
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    style={styles.input}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Email Address *</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  style={styles.input}
+                  placeholder="you@example.com"
+                  required
+                />
+                {emailValid === false && <span style={styles.hintError}>❌ Email already registered</span>}
+                {emailValid === true && <span style={styles.hintSuccess}>✓ Email available</span>}
+              </div>
+
+              <div style={styles.row}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Password *</label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    style={styles.input}
+                    required
+                  />
+                  <span style={styles.hint}>Minimum 6 characters</span>
+                </div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Confirm Password *</label>
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    style={styles.input}
+                    required
+                  />
+                  {!passwordMatch && <span style={styles.hintError}>❌ Passwords don't match</span>}
+                </div>
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Phone Number *</label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  style={styles.input}
+                  placeholder="+1234567890"
+                  required
+                />
+                {phoneValid === false && <span style={styles.hintError}>❌ Phone already registered</span>}
+                {phoneValid === true && <span style={styles.hintSuccess}>✓ Phone available</span>}
+              </div>
+
+              <button type="button" onClick={handleNext} style={styles.nextButton}>
+                Next: Role Details →
+              </button>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div>
+              <div style={styles.sectionTitle}>
+                {role === 'customer' && '🚗 Vehicle Information (Optional)'}
+                {role === 'provider' && '🏢 Business Information'}
+                {role === 'driver' && '🚚 Driver Information'}
+                {role === 'admin' && '👑 Admin Information'}
+              </div>
+
+              {role === 'customer' && (
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Home Address (Optional)</label>
+                  <textarea
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    style={styles.textarea}
+                    placeholder="Your home address for service pickup"
+                  />
+                </div>
+              )}
+
+              {role === 'provider' && (
+                <>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Business Name *</label>
+                    <input
+                      type="text"
+                      name="businessName"
+                      value={formData.businessName}
+                      onChange={handleChange}
+                      style={styles.input}
+                      placeholder="Your auto repair shop name"
+                      required
+                    />
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Business License (Optional)</label>
+                    <input
+                      type="text"
+                      name="businessLicense"
+                      value={formData.businessLicense}
+                      onChange={handleChange}
+                      style={styles.input}
+                      placeholder="License number"
+                    />
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Business Address (Optional)</label>
+                    <textarea
+                      name="businessAddress"
+                      value={formData.businessAddress}
+                      onChange={handleChange}
+                      style={styles.textarea}
+                      placeholder="Shop address"
+                    />
+                  </div>
+                </>
+              )}
+
+              {role === 'driver' && (
+                <>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Driver's License Number *</label>
+                    <input
+                      type="text"
+                      name="driversLicense"
+                      value={formData.driversLicense}
+                      onChange={handleChange}
+                      style={styles.input}
+                      placeholder="DL12345678"
+                      required
+                    />
+                  </div>
+                  <div style={styles.row}>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Vehicle Model</label>
+                      <input
+                        type="text"
+                        name="vehicleModel"
+                        value={formData.vehicleModel}
+                        onChange={handleChange}
+                        style={styles.input}
+                        placeholder="Toyota Camry"
+                      />
+                    </div>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Vehicle Color</label>
+                      <input
+                        type="text"
+                        name="vehicleColor"
+                        value={formData.vehicleColor}
+                        onChange={handleChange}
+                        style={styles.input}
+                        placeholder="Red"
+                      />
+                    </div>
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>License Plate</label>
+                    <input
+                      type="text"
+                      name="vehiclePlate"
+                      value={formData.vehiclePlate}
+                      onChange={handleChange}
+                      style={styles.input}
+                      placeholder="ABC-1234"
+                    />
+                  </div>
+                </>
+              )}
+
+              {role === 'admin' && (
+                <div style={styles.infoBox}>
+                  <p>⚠️ Admin accounts require approval. Your application will be reviewed.</p>
+                </div>
+              )}
+
+              <div style={styles.buttonGroup}>
+                <button type="button" onClick={handleBack} style={styles.backStepButton}>
+                  ← Back
+                </button>
+                <button type="submit" style={styles.submitButton} disabled={loading}>
+                  {loading ? 'Creating Account...' : `Create ${role.charAt(0).toUpperCase() + role.slice(1)} Account`}
+                </button>
+              </div>
+            </div>
+          )}
+        </form>
+
+        <div style={styles.footer}>
+          <p>Already have an account? <a href="#" onClick={(e) => { e.preventDefault(); onBack(); }}>Sign in</a></p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const styles = {
+  container: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: '100vh',
+    backgroundColor: '#f3f4f6',
+    padding: '20px'
+  },
+  card: {
+    backgroundColor: 'white',
+    padding: '40px',
+    borderRadius: '16px',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+    width: '100%',
+    maxWidth: '600px',
+    position: 'relative'
+  },
+  backButton: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    color: '#6b7280',
+    marginBottom: '20px',
+    fontSize: '14px'
+  },
+  header: {
+    textAlign: 'center',
+    marginBottom: '30px'
+  },
+  roleIcon: {
+    fontSize: '48px',
+    display: 'block',
+    marginBottom: '10px'
+  },
+  title: {
+    fontSize: '24px',
+    color: '#1f2937',
+    marginBottom: '5px'
+  },
+  subtitle: {
+    fontSize: '14px',
+    color: '#6b7280'
+  },
+  progressBar: {
+    height: '4px',
+    backgroundColor: '#e5e7eb',
+    borderRadius: '2px',
+    marginBottom: '30px',
+    overflow: 'hidden'
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#2563eb',
+    transition: 'width 0.3s ease'
+  },
+  sectionTitle: {
+    fontSize: '18px',
+    fontWeight: 'bold',
+    color: '#374151',
+    marginBottom: '20px',
+    paddingBottom: '10px',
+    borderBottom: '2px solid #e5e7eb'
+  },
+  row: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '15px',
+    marginBottom: '15px'
+  },
+  formGroup: {
+    marginBottom: '20px'
+  },
+  label: {
+    display: 'block',
+    marginBottom: '8px',
+    color: '#374151',
+    fontSize: '14px',
+    fontWeight: '500'
+  },
+  input: {
+    width: '100%',
+    padding: '12px',
+    border: '1px solid #d1d5db',
+    borderRadius: '8px',
+    fontSize: '14px',
+    boxSizing: 'border-box',
+    transition: 'borderColor 0.2s'
+  },
+  textarea: {
+    width: '100%',
+    padding: '12px',
+    border: '1px solid #d1d5db',
+    borderRadius: '8px',
+    fontSize: '14px',
+    boxSizing: 'border-box',
+    minHeight: '80px',
+    fontFamily: 'inherit'
+  },
+  hint: {
+    fontSize: '11px',
+    color: '#6b7280',
+    marginTop: '4px',
+    display: 'block'
+  },
+  hintError: {
+    fontSize: '11px',
+    color: '#ef4444',
+    marginTop: '4px',
+    display: 'block'
+  },
+  hintSuccess: {
+    fontSize: '11px',
+    color: '#10b981',
+    marginTop: '4px',
+    display: 'block'
+  },
+  nextButton: {
+    width: '100%',
+    padding: '14px',
+    backgroundColor: '#2563eb',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    marginTop: '20px'
+  },
+  buttonGroup: {
+    display: 'flex',
+    gap: '15px',
+    marginTop: '20px'
+  },
+  backStepButton: {
+    flex: 1,
+    padding: '14px',
+    backgroundColor: '#f3f4f6',
+    color: '#374151',
+    border: '1px solid #d1d5db',
+    borderRadius: '8px',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    cursor: 'pointer'
+  },
+  submitButton: {
+    flex: 2,
+    padding: '14px',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    cursor: 'pointer'
+  },
+  error: {
+    backgroundColor: '#fee2e2',
+    color: '#dc2626',
+    padding: '12px',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    fontSize: '14px'
+  },
+  successContainer: {
+    textAlign: 'center',
+    padding: '20px'
+  },
+  successIcon: {
+    fontSize: '64px',
+    display: 'block',
+    marginBottom: '20px'
+  },
+  redirectText: {
+    color: '#6b7280',
+    marginTop: '15px',
+    fontSize: '14px'
+  },
+  redirectButton: {
+    marginTop: '20px',
+    padding: '10px 20px',
+    backgroundColor: '#2563eb',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px'
+  },
+  infoBox: {
+    backgroundColor: '#fef3c7',
+    color: '#92400e',
+    padding: '15px',
+    borderRadius: '8px',
+    marginBottom: '20px'
+  },
+  footer: {
+    textAlign: 'center',
+    marginTop: '20px',
+    paddingTop: '20px',
+    borderTop: '1px solid #e5e7eb',
+    fontSize: '14px',
+    color: '#6b7280'
+  }
+};
+
+export default RegisterPage;

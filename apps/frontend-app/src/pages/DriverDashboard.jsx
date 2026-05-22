@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useSocket } from '../hooks/useSocket';
+import WhatsAppButton from '../components/WhatsAppButton';
+import { StatCard, ModernButton, Badge } from '../components/ModernUI';
 import { initializePushNotifications, requestNotificationPermission, sendPushNotification } from '../utils/pushNotifications';
 
 function DriverDashboard({ user, onLogout }) {
@@ -29,11 +31,8 @@ function DriverDashboard({ user, onLogout }) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [isSharingLocation, setIsSharingLocation] = useState(false);
   const [locationWatchId, setLocationWatchId] = useState(null);
-
-  // Driver Stats
   const [driverRating, setDriverRating] = useState(0);
   const [totalReviews, setTotalReviews] = useState(0);
-
   const [stripeStatus, setStripeStatus] = useState({ hasAccount: false, status: null, onboardingComplete: false });
   const [loadingStripe, setLoadingStripe] = useState(false);
   const [profileData, setProfileData] = useState({
@@ -56,7 +55,35 @@ function DriverDashboard({ user, onLogout }) {
 
   const token = localStorage.getItem('token');
 
-  // WebSocket integration
+  const fetchUserProfile = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        setProfileData({
+          firstName: data.user.firstName || '',
+          lastName: data.user.lastName || '',
+          email: data.user.email || '',
+          phone: data.user.phone || '',
+          driversLicense: data.user.driversLicense || '',
+          address: data.user.address || ''
+        });
+        setEditProfileData({
+          firstName: data.user.firstName || '',
+          lastName: data.user.lastName || '',
+          email: data.user.email || '',
+          phone: data.user.phone || '',
+          driversLicense: data.user.driversLicense || '',
+          address: data.user.address || ''
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
   const { 
     isConnected,
     updateDriverLocation,
@@ -68,15 +95,14 @@ function DriverDashboard({ user, onLogout }) {
     joinBookingRoom
   } = useSocket();
 
-  // Initialize push notifications
   useEffect(() => {
     initializePushNotifications();
+    fetchUserProfile();
   }, []);
 
-  // Fetch driver rating from reviews
   const fetchDriverRating = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/reviews/driver/my-ratings', {
+      const res = await fetch('http://localhost:5000/api/reviews/driver/my-ratings', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -90,17 +116,14 @@ function DriverDashboard({ user, onLogout }) {
     }
   };
 
-  // Start location tracking when online
   const startLocationTracking = () => {
     if (locationWatchId) {
       navigator.geolocation.clearWatch(locationWatchId);
     }
-
     if (!navigator.geolocation) {
       toast.error('Geolocation not supported by your browser');
       return;
     }
-
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
@@ -110,14 +133,10 @@ function DriverDashboard({ user, onLogout }) {
           address: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
           lastUpdate: new Date()
         };
-        
         setCurrentLocation(newLocation);
-        
-        // Send location via WebSocket to customers
         if (isOnline) {
           updateDriverLocation(latitude, longitude);
         }
-        
         setIsSharingLocation(true);
       },
       (error) => {
@@ -131,17 +150,11 @@ function DriverDashboard({ user, onLogout }) {
         }
         setIsSharingLocation(false);
       },
-      { 
-        enableHighAccuracy: true, 
-        maximumAge: 5000, 
-        timeout: 10000 
-      }
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
     );
-    
     setLocationWatchId(watchId);
   };
 
-  // Stop location tracking
   const stopLocationTracking = () => {
     if (locationWatchId) {
       navigator.geolocation.clearWatch(locationWatchId);
@@ -150,10 +163,8 @@ function DriverDashboard({ user, onLogout }) {
     setIsSharingLocation(false);
   };
 
-  // Handle online/offline toggle
   const handleOnlineToggle = async (online) => {
     setIsOnline(online);
-    
     if (online) {
       goOnline();
       startLocationTracking();
@@ -164,9 +175,8 @@ function DriverDashboard({ user, onLogout }) {
       stopLocationTracking();
       toast.info('You are now offline');
     }
-    
     try {
-      await fetch('https://carcareconnect-backend.onrender.com/api/driver/status', {
+      await fetch('http://localhost:5000/api/driver/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ isOnline: online })
@@ -176,7 +186,6 @@ function DriverDashboard({ user, onLogout }) {
     }
   };
 
-  // WebSocket listeners
   useEffect(() => {
     const unsubscribeBooking = onBookingStatusChanged((data) => {
       console.log('Booking status changed:', data);
@@ -189,7 +198,6 @@ function DriverDashboard({ user, onLogout }) {
         toast.warning(`Delivery cancelled`);
       }
     });
-    
     const unsubscribeDriver = onDriverStatusChange((data) => {
       if (data.driverId === user?._id && data.isOnline !== isOnline) {
         setIsOnline(data.isOnline);
@@ -202,7 +210,6 @@ function DriverDashboard({ user, onLogout }) {
         }
       }
     });
-    
     return () => {
       if (unsubscribeBooking) unsubscribeBooking();
       if (unsubscribeDriver) unsubscribeDriver();
@@ -210,7 +217,6 @@ function DriverDashboard({ user, onLogout }) {
     };
   }, [onBookingStatusChanged, onDriverStatusChange]);
 
-  // Fetch all data
   useEffect(() => {
     fetchAllData();
     fetchBankAccount();
@@ -223,7 +229,7 @@ function DriverDashboard({ user, onLogout }) {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const dashboardRes = await fetch('https://carcareconnect-backend.onrender.com/api/driver/dashboard', {
+      const dashboardRes = await fetch('http://localhost:5000/api/driver/dashboard', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const dashboardData = await dashboardRes.json();
@@ -257,7 +263,7 @@ function DriverDashboard({ user, onLogout }) {
 
   const fetchBankAccount = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/driver/bank-account', {
+      const res = await fetch('http://localhost:5000/api/driver/bank-account', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -270,7 +276,7 @@ function DriverDashboard({ user, onLogout }) {
 
   const fetchPayoutHistory = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/driver/payout-history', {
+      const res = await fetch('http://localhost:5000/api/driver/payout-history', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -286,7 +292,7 @@ function DriverDashboard({ user, onLogout }) {
     e.preventDefault();
     setLoadingBank(true);
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/driver/bank-account', {
+      const res = await fetch('http://localhost:5000/api/driver/bank-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(bankAccount)
@@ -306,7 +312,7 @@ function DriverDashboard({ user, onLogout }) {
   const deleteBankAccount = async () => {
     if (window.confirm('Remove bank account?')) {
       try {
-        const res = await fetch('https://carcareconnect-backend.onrender.com/api/driver/bank-account', {
+        const res = await fetch('http://localhost:5000/api/driver/bank-account', {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -322,7 +328,7 @@ function DriverDashboard({ user, onLogout }) {
 
   const checkStripeStatus = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/stripe/account-status', {
+      const res = await fetch('http://localhost:5000/api/stripe/account-status', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -333,7 +339,7 @@ function DriverDashboard({ user, onLogout }) {
   const connectStripe = async () => {
     setLoadingStripe(true);
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/stripe/onboarding-link', {
+      const res = await fetch('http://localhost:5000/api/stripe/onboarding-link', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -346,7 +352,7 @@ function DriverDashboard({ user, onLogout }) {
   const disconnectStripe = async () => {
     if (window.confirm('Disconnect Stripe?')) {
       try {
-        const res = await fetch('https://carcareconnect-backend.onrender.com/api/stripe/disconnect', {
+        const res = await fetch('http://localhost:5000/api/stripe/disconnect', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -374,7 +380,7 @@ function DriverDashboard({ user, onLogout }) {
       return;
     }
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/driver/payout', {
+      const res = await fetch('http://localhost:5000/api/driver/payout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ amount: parseFloat(payoutAmount) })
@@ -394,7 +400,7 @@ function DriverDashboard({ user, onLogout }) {
 
   const acceptDelivery = async (deliveryId) => {
     try {
-      const res = await fetch(`https://carcareconnect-backend.onrender.com/api/driver/accept/${deliveryId}`, {
+      const res = await fetch(`http://localhost:5000/api/driver/accept/${deliveryId}`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -412,7 +418,7 @@ function DriverDashboard({ user, onLogout }) {
   const updateDeliveryStatus = async (deliveryId, status) => {
     try {
       updateBookingStatus(deliveryId, status);
-      const res = await fetch(`https://carcareconnect-backend.onrender.com/api/driver/delivery/${deliveryId}/status`, {
+      const res = await fetch(`http://localhost:5000/api/driver/delivery/${deliveryId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ status })
@@ -431,7 +437,7 @@ function DriverDashboard({ user, onLogout }) {
   const updateVehicleInfo = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/driver/vehicle', {
+      const res = await fetch('http://localhost:5000/api/driver/vehicle', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(vehicleInfo)
@@ -448,7 +454,7 @@ function DriverDashboard({ user, onLogout }) {
   const updateProfile = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/driver/profile', {
+      const res = await fetch('http://localhost:5000/api/driver/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(editProfileData)
@@ -458,6 +464,7 @@ function DriverDashboard({ user, onLogout }) {
         toast.success('Profile updated!');
         setProfileData(editProfileData);
         setShowEditProfileModal(false);
+        fetchUserProfile();
       } else {
         toast.error(data.error || 'Failed to update');
       }
@@ -466,7 +473,7 @@ function DriverDashboard({ user, onLogout }) {
 
   const downloadInvoice = async (payoutId) => {
     try {
-      const res = await fetch(`https://carcareconnect-backend.onrender.com/api/invoices/download/${payoutId}`, {
+      const res = await fetch(`http://localhost:5000/api/invoices/download/${payoutId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -490,7 +497,7 @@ function DriverDashboard({ user, onLogout }) {
       'driver-assigned': { bg: '#e0e7ff', color: '#4338ca', icon: '🚗', label: 'Driver Assigned' }
     };
     const c = config[status] || { bg: '#f3f4f6', color: '#6b7280', icon: '📌', label: status };
-    return <span style={{ backgroundColor: c.bg, color: c.color, padding: '4px 10px', borderRadius: '20px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>{c.icon} {c.label}</span>;
+    return <Badge status={status}>{c.icon} {c.label}</Badge>;
   };
 
   const todayEarnings = earnings.today || 0;
@@ -513,33 +520,21 @@ function DriverDashboard({ user, onLogout }) {
       width: sidebarCollapsed ? '80px' : '280px',
       backgroundColor: darkMode ? '#1e293b' : '#ffffff',
       transition: 'width 0.3s ease',
-      position: 'fixed',
-      height: '100vh',
-      overflow: 'hidden',
-      zIndex: 100,
-      boxShadow: '2px 0 8px rgba(0,0,0,0.05)'
+      position: 'fixed', height: '100vh', overflow: 'hidden', zIndex: 100, boxShadow: '2px 0 8px rgba(0,0,0,0.05)'
     },
     sidebarHeader: {
       padding: sidebarCollapsed ? '20px 0' : '24px 24px',
       borderBottom: '1px solid ' + (darkMode ? '#334155' : '#e5e7eb'),
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: sidebarCollapsed ? 'center' : 'space-between'
+      display: 'flex', alignItems: 'center', justifyContent: sidebarCollapsed ? 'center' : 'space-between'
     },
     logoIcon: { fontSize: '28px' },
     logoText: { fontSize: '18px', fontWeight: 'bold', marginLeft: '10px', display: sidebarCollapsed ? 'none' : 'block', color: darkMode ? 'white' : '#1f2937' },
     collapseBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', display: sidebarCollapsed ? 'none' : 'block', color: darkMode ? 'white' : '#6b7280' },
     sidebarMenu: { flex: 1, padding: '20px 0' },
     menuItem: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-      padding: sidebarCollapsed ? '12px 0' : '12px 24px',
-      margin: '4px 8px',
-      borderRadius: '10px',
-      cursor: 'pointer',
-      transition: 'all 0.2s ease',
-      justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+      display: 'flex', alignItems: 'center', gap: '12px',
+      padding: sidebarCollapsed ? '12px 0' : '12px 24px', margin: '4px 8px', borderRadius: '10px', cursor: 'pointer',
+      transition: 'all 0.2s ease', justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
       color: darkMode ? '#94a3b8' : '#6b7280'
     },
     menuItemActive: { backgroundColor: darkMode ? '#8b5cf620' : '#8b5cf610', color: '#8b5cf6' },
@@ -548,15 +543,9 @@ function DriverDashboard({ user, onLogout }) {
     menuBadge: { backgroundColor: '#ef4444', color: 'white', fontSize: '10px', padding: '2px 6px', borderRadius: '10px', marginLeft: '8px' },
     mainContent: { flex: 1, marginLeft: sidebarCollapsed ? '80px' : '280px', transition: 'margin-left 0.3s ease' },
     topHeader: {
-      backgroundColor: darkMode ? '#1e293b' : '#ffffff',
-      padding: '16px 30px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      borderBottom: '1px solid ' + (darkMode ? '#334155' : '#e5e7eb'),
-      position: 'sticky',
-      top: 0,
-      zIndex: 99
+      backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '16px 30px',
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      borderBottom: '1px solid ' + (darkMode ? '#334155' : '#e5e7eb'), position: 'sticky', top: 0, zIndex: 99
     },
     headerTitle: { fontSize: '20px', fontWeight: 'bold', color: darkMode ? 'white' : '#1f2937' },
     headerRight: { display: 'flex', alignItems: 'center', gap: '20px' },
@@ -565,16 +554,8 @@ function DriverDashboard({ user, onLogout }) {
     themeToggle: { background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '8px', borderRadius: '8px', backgroundColor: darkMode ? '#334155' : '#f3f4f6' },
     wsBadge: { backgroundColor: isConnected ? '#10b981' : '#ef4444', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', color: 'white', display: 'flex', alignItems: 'center', gap: '5px' },
     onlineToggle: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      padding: '6px 15px',
-      borderRadius: '20px',
-      border: 'none',
-      color: 'white',
-      cursor: 'pointer',
-      fontSize: '12px',
-      fontWeight: 'bold',
+      display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 15px', borderRadius: '20px',
+      border: 'none', color: 'white', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold',
       backgroundColor: isOnline ? '#10b981' : '#ef4444'
     },
     locationBtn: { background: 'none', border: '1px solid #d1d5db', borderRadius: '8px', padding: '6px 12px', cursor: 'pointer', fontSize: '14px' },
@@ -583,16 +564,17 @@ function DriverDashboard({ user, onLogout }) {
     avatar: { width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white' },
     userName: { fontWeight: '500', color: darkMode ? 'white' : '#374151' },
     logoutBtn: { backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' },
+    emailBtn: { backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', textDecoration: 'none', display: 'inline-block', marginTop: '10px' },
     contentArea: { padding: '24px 30px' },
     statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '16px', marginBottom: '24px' },
-    statCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '16px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+    statCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '16px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', transition: 'all 0.3s ease' },
     statValue: { fontSize: '24px', fontWeight: 'bold', color: '#8b5cf6', margin: '8px 0' },
     statLabel: { fontSize: '12px', color: '#6b7280' },
     payoutBtn: { backgroundColor: '#f59e0b', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', marginTop: '5px' },
     quickStats: { display: 'flex', gap: '15px', padding: '0 0 20px 0', flexWrap: 'wrap' },
     quickStat: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '8px 15px', borderRadius: '20px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' },
     twoColumn: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' },
-    card: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '20px', borderRadius: '12px', marginBottom: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+    card: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '20px', borderRadius: '16px', marginBottom: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', transition: 'all 0.3s ease' },
     cardTitle: { fontSize: '16px', fontWeight: 'bold', marginBottom: '15px', color: darkMode ? 'white' : '#374151' },
     performanceItem: { display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' },
     performanceValue: { fontWeight: 'bold', color: '#8b5cf6' },
@@ -600,7 +582,7 @@ function DriverDashboard({ user, onLogout }) {
     availableItem: { padding: '10px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' },
     acceptSmallBtn: { backgroundColor: '#10b981', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' },
     sectionHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' },
-    deliveryCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', borderRadius: '12px', marginBottom: '20px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+    deliveryCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', borderRadius: '16px', marginBottom: '20px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
     deliveryHeader: { backgroundColor: darkMode ? '#334155' : '#f9fafb', padding: '15px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' },
     deliveryType: { fontWeight: 'bold', color: '#f59e0b' },
     deliveryContent: { padding: '20px', display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' },
@@ -611,7 +593,7 @@ function DriverDashboard({ user, onLogout }) {
     priceBadge: { display: 'inline-block', backgroundColor: '#d1fae5', color: '#065f46', padding: '4px 12px', borderRadius: '15px', fontSize: '12px' },
     deliveryFooter: { padding: '15px 20px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' },
     acceptBtn: { backgroundColor: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' },
-    activeCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', borderRadius: '12px', marginBottom: '20px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+    activeCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', borderRadius: '16px', marginBottom: '20px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
     activeHeader: { backgroundColor: darkMode ? '#334155' : '#f9fafb', padding: '15px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' },
     activeType: { fontWeight: 'bold', color: '#3b82f6' },
     progressSteps: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', gap: '10px', flexWrap: 'wrap' },
@@ -621,53 +603,52 @@ function DriverDashboard({ user, onLogout }) {
     stepLine: { width: '40px', height: '2px', backgroundColor: '#e5e7eb' },
     jobDetails: { padding: '0 20px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' },
     actionButtons: { padding: '15px 20px', borderTop: '1px solid #e5e7eb', display: 'flex', gap: '10px', flexWrap: 'wrap' },
-    pickupBtn: { backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' },
-    completeBtn: { backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' },
-    contactBtn: { backgroundColor: '#6b7280', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' },
-    emailBtn: { backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', textDecoration: 'none', display: 'inline-block', marginTop: '10px' },
+    pickupBtn: { backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' },
+    completeBtn: { backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' },
+    contactBtn: { backgroundColor: '#6b7280', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' },
     historyHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' },
-    filterSelect: { padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: darkMode ? '#334155' : 'white', color: darkMode ? 'white' : '#374151' },
+    filterSelect: { padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', backgroundColor: darkMode ? '#334155' : 'white', color: darkMode ? 'white' : '#374151' },
     historyCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '15px', borderRadius: '12px', marginBottom: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
     earningText: { color: '#10b981', fontWeight: 'bold', marginTop: '5px' },
     earningsHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' },
     payoutRequestBtn: { backgroundColor: '#f59e0b', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' },
     earningsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '30px' },
-    earningsCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '20px', borderRadius: '12px', textAlign: 'center' },
+    earningsCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '20px', borderRadius: '16px', textAlign: 'center' },
     pendingItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', borderBottom: '1px solid #e5e7eb' },
     pendingAmount: { fontSize: '16px', fontWeight: 'bold', color: '#10b981' },
     payoutItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', borderBottom: '1px solid #e5e7eb', flexWrap: 'wrap', gap: '10px' },
     payoutAmount: { fontSize: '16px', fontWeight: 'bold', color: '#10b981' },
     invoiceBtn: { backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' },
     emptyState: { textAlign: 'center', padding: '40px', color: '#6b7280' },
-    vehicleContainer: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '30px', borderRadius: '12px' },
+    vehicleContainer: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '30px', borderRadius: '16px' },
     vehicleHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
     editBtn: { backgroundColor: '#f59e0b', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' },
-    vehicleCard: { display: 'flex', alignItems: 'center', gap: '20px', padding: '20px', backgroundColor: darkMode ? '#334155' : '#f9fafb', borderRadius: '12px', marginBottom: '20px' },
+    vehicleCard: { display: 'flex', alignItems: 'center', gap: '20px', padding: '20px', backgroundColor: darkMode ? '#334155' : '#f9fafb', borderRadius: '16px', marginBottom: '20px' },
     vehicleIcon: { fontSize: '48px' },
-    profileContainer: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '30px', borderRadius: '12px' },
+    profileContainer: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '30px', borderRadius: '16px' },
     profileHeader: { display: 'flex', gap: '30px', alignItems: 'center', marginBottom: '30px', flexWrap: 'wrap' },
     profileAvatar: { width: '100px', height: '100px', borderRadius: '50%', backgroundColor: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', color: 'white' },
     editProfileBtn: { backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' },
     profileInfo: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '15px', marginBottom: '30px' },
     enableNotificationsBtn: { backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', marginTop: '10px' },
     bankSection: { marginTop: '30px', paddingTop: '20px', borderTop: '1px solid #e5e7eb' },
-    bankCard: { backgroundColor: '#f9fafb', padding: '15px', borderRadius: '10px', marginBottom: '10px' },
+    bankCard: { backgroundColor: '#f9fafb', padding: '15px', borderRadius: '12px', marginBottom: '10px' },
     editBankBtn: { backgroundColor: '#f59e0b', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', marginRight: '10px' },
     deleteBankBtn: { backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' },
-    noBankCard: { backgroundColor: '#fef3c7', padding: '20px', borderRadius: '12px', textAlign: 'center' },
+    noBankCard: { backgroundColor: '#fef3c7', padding: '20px', borderRadius: '16px', textAlign: 'center' },
     addBankBtn: { backgroundColor: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' },
     stripeSection: { marginTop: '30px', paddingTop: '20px', borderTop: '1px solid #e5e7eb' },
-    stripeCard: { backgroundColor: '#e0e7ff', padding: '20px', borderRadius: '12px', display: 'flex', gap: '15px', alignItems: 'flex-start', flexWrap: 'wrap' },
-    stripeSuccessCard: { backgroundColor: '#d1fae5', padding: '20px', borderRadius: '12px', display: 'flex', gap: '15px', alignItems: 'flex-start', flexWrap: 'wrap' },
-    stripePendingCard: { backgroundColor: '#fef3c7', padding: '20px', borderRadius: '12px', display: 'flex', gap: '15px', alignItems: 'flex-start', flexWrap: 'wrap' },
+    stripeCard: { backgroundColor: '#e0e7ff', padding: '20px', borderRadius: '16px', display: 'flex', gap: '15px', alignItems: 'flex-start', flexWrap: 'wrap' },
+    stripeSuccessCard: { backgroundColor: '#d1fae5', padding: '20px', borderRadius: '16px', display: 'flex', gap: '15px', alignItems: 'flex-start', flexWrap: 'wrap' },
+    stripePendingCard: { backgroundColor: '#fef3c7', padding: '20px', borderRadius: '16px', display: 'flex', gap: '15px', alignItems: 'flex-start', flexWrap: 'wrap' },
     connectStripeBtn: { backgroundColor: '#635bff', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', marginTop: '10px', fontWeight: 'bold' },
     disconnectStripeBtn: { backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', marginTop: '10px', fontSize: '12px' },
-    settingsContainer: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '30px', borderRadius: '12px' },
+    settingsContainer: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '30px', borderRadius: '16px' },
     settingsSection: { marginBottom: '30px', paddingBottom: '20px', borderBottom: '1px solid #e5e7eb' },
     saveSettingsBtn: { backgroundColor: '#10b981', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer' },
     modal: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-    modalContent: { backgroundColor: darkMode ? '#1e293b' : 'white', padding: '24px', borderRadius: '12px', maxWidth: '500px', width: '90%' },
-    modalContentSmall: { backgroundColor: darkMode ? '#1e293b' : 'white', padding: '24px', borderRadius: '12px', maxWidth: '400px', width: '90%' },
+    modalContent: { backgroundColor: darkMode ? '#1e293b' : 'white', padding: '24px', borderRadius: '16px', maxWidth: '500px', width: '90%' },
+    modalContentSmall: { backgroundColor: darkMode ? '#1e293b' : 'white', padding: '24px', borderRadius: '16px', maxWidth: '400px', width: '90%' },
     input: { width: '100%', padding: '10px', marginBottom: '10px', border: '1px solid #d1d5db', borderRadius: '8px', backgroundColor: darkMode ? '#334155' : 'white', color: darkMode ? 'white' : '#374151' },
     textarea: { width: '100%', padding: '10px', marginBottom: '10px', border: '1px solid #d1d5db', borderRadius: '8px', minHeight: '80px', backgroundColor: darkMode ? '#334155' : 'white', color: darkMode ? 'white' : '#374151' },
     modalActions: { display: 'flex', gap: '10px', marginTop: '20px' },
@@ -692,7 +673,6 @@ function DriverDashboard({ user, onLogout }) {
     <div style={styles.container}>
       <ToastContainer position="top-right" />
       
-      {/* Sidebar */}
       <div style={styles.sidebar}>
         <div style={styles.sidebarHeader}>
           <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -724,9 +704,7 @@ function DriverDashboard({ user, onLogout }) {
         </div>
       </div>
 
-      {/* Main Content */}
       <div style={styles.mainContent}>
-        {/* Top Header */}
         <div style={styles.topHeader}>
           <div style={styles.headerTitle}>
             {menuItems.find(m => m.id === activeTab)?.label || 'Dashboard'}
@@ -761,7 +739,6 @@ function DriverDashboard({ user, onLogout }) {
           </div>
         </div>
 
-        {/* Notification Dropdown */}
         {showNotifications && (
           <div style={{
             position: 'absolute', top: '70px', right: '30px', width: '350px', backgroundColor: 'white',
@@ -775,9 +752,7 @@ function DriverDashboard({ user, onLogout }) {
           </div>
         )}
 
-        {/* Content Area */}
         <div style={styles.contentArea}>
-          {/* Stats Cards */}
           <div style={styles.statsGrid}>
             <div style={styles.statCard}><div style={styles.statValue}>${todayEarnings}</div><div style={styles.statLabel}>Today</div></div>
             <div style={styles.statCard}><div style={styles.statValue}>${earnings.weekly}</div><div style={styles.statLabel}>Weekly</div></div>
@@ -787,7 +762,6 @@ function DriverDashboard({ user, onLogout }) {
             <div style={styles.statCard}><div style={styles.statValue}>${earnings.pendingPayout}<button style={styles.payoutBtn} onClick={() => setShowPayoutModal(true)}>Request</button></div><div style={styles.statLabel}>Pending</div></div>
           </div>
 
-          {/* Quick Stats */}
           <div style={styles.quickStats}>
             <div style={styles.quickStat}><span>🚗</span> Online: {isOnline ? 'Yes' : 'No'}</div>
             <div style={styles.quickStat}><span>📦</span> Available: {availableDeliveries.length}</div>
@@ -797,7 +771,6 @@ function DriverDashboard({ user, onLogout }) {
             <div style={styles.quickStat}><span>📍</span> GPS: {isSharingLocation ? 'Active' : 'Inactive'}</div>
           </div>
 
-          {/* Dashboard Tab */}
           {activeTab === 'dashboard' && (
             <div style={styles.twoColumn}>
               <div>
@@ -852,7 +825,6 @@ function DriverDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Available Deliveries Tab */}
           {activeTab === 'available' && (
             <div>
               <div style={styles.sectionHeader}>
@@ -897,7 +869,6 @@ function DriverDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Active Jobs Tab */}
           {activeTab === 'active' && (
             <div>
               <h2>🚗 Active Jobs ({activeJobs.length})</h2>
@@ -933,13 +904,21 @@ function DriverDashboard({ user, onLogout }) {
                     )}
                     <button style={styles.contactBtn}>📞 Contact</button>
                     <a href={`mailto:${job.customerId?.email}?subject=Your delivery for ${job.serviceName}&body=Hello%20${job.customerId?.firstName},%0D%0A%0D%0AI am your driver for the delivery of your vehicle for ${job.serviceName}.%0D%0A%0D%0AI will be arriving shortly.%0D%0A%0D%0AThank you!`} style={styles.emailBtn}>✉️ Message Customer</a>
+                    
+                    {job.customerId?.phone && (
+                      <WhatsAppButton 
+                        phoneNumber={job.customerId.phone}
+                        message={`Hello ${job.customerId?.firstName}, I am your driver for the delivery of your vehicle for ${job.serviceName}. I will be arriving shortly. Thank you!`}
+                      >
+                        💬 WhatsApp Customer
+                      </WhatsAppButton>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           )}
 
-          {/* History Tab */}
           {activeTab === 'history' && (
             <div>
               <div style={styles.historyHeader}>
@@ -959,7 +938,6 @@ function DriverDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Earnings Tab */}
           {activeTab === 'earnings' && (
             <div>
               <div style={styles.earningsHeader}>
@@ -994,7 +972,6 @@ function DriverDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Vehicle Tab */}
           {activeTab === 'vehicle' && (
             <div style={styles.vehicleContainer}>
               <div style={styles.vehicleHeader}>
@@ -1008,7 +985,6 @@ function DriverDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Profile Tab */}
           {activeTab === 'profile' && (
             <div style={styles.profileContainer}>
               <h2>👤 Driver Profile</h2>
@@ -1049,7 +1025,6 @@ function DriverDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Settings Tab */}
           {activeTab === 'settings' && (
             <div style={styles.settingsContainer}>
               <div style={styles.cardTitle}>⚙️ Settings</div>
@@ -1065,7 +1040,6 @@ function DriverDashboard({ user, onLogout }) {
         </div>
       </div>
 
-      {/* Modals */}
       {showEditProfileModal && (
         <div style={styles.modal}><div style={styles.modalContent}><h2>Edit Profile</h2><form onSubmit={updateProfile}>
           <input style={styles.input} type="text" placeholder="First Name" value={editProfileData.firstName} onChange={(e) => setEditProfileData({...editProfileData, firstName: e.target.value})} required />

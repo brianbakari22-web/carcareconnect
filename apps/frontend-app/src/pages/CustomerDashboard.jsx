@@ -9,6 +9,8 @@ import 'react-calendar/dist/Calendar.css';
 import { useSocket } from '../hooks/useSocket';
 import DiscoveryPage from './DiscoveryPage';
 import DriverMap from '../components/DriverMap';
+import WhatsAppButton from '../components/WhatsAppButton';
+import { StatCard, ModernButton, Badge } from '../components/ModernUI';
 import { initializePushNotifications, requestNotificationPermission, sendPushNotification } from '../utils/pushNotifications';
 
 const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY);
@@ -36,7 +38,6 @@ function CustomerDashboard({ user, onLogout }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   
-  // Review State
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedBookingForReview, setSelectedBookingForReview] = useState(null);
   const [reviewRating, setReviewRating] = useState(5);
@@ -44,12 +45,10 @@ function CustomerDashboard({ user, onLogout }) {
   const [driverRating, setDriverRating] = useState(5);
   const [driverReviewText, setDriverReviewText] = useState('');
   
-  // Refund State
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [selectedBookingForRefund, setSelectedBookingForRefund] = useState(null);
   const [refundReason, setRefundReason] = useState('');
   
-  // Loyalty State
   const [loyaltyPoints, setLoyaltyPoints] = useState(0);
   const [loyaltyTier, setLoyaltyTier] = useState('Bronze');
 
@@ -70,7 +69,7 @@ function CustomerDashboard({ user, onLogout }) {
   const [editProfileData, setEditProfileData] = useState({
     fullName: profile.fullName,
     email: profile.email,
-    phone: profile.phone,
+    phone: profile.phone || '',
     address: profile.address
   });
 
@@ -79,7 +78,6 @@ function CustomerDashboard({ user, onLogout }) {
 
   const token = localStorage.getItem('token');
 
-  // WebSocket hook
   const { 
     isConnected,
     subscribeToDriver,
@@ -90,16 +88,34 @@ function CustomerDashboard({ user, onLogout }) {
     joinBookingRoom
   } = useSocket();
 
-  // Initialize push notifications
   useEffect(() => {
     initializePushNotifications();
   }, []);
 
-  // Fetch loyalty points
+  const fetchUserProfile = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        setProfile(prev => ({
+          ...prev,
+          fullName: `${data.user.firstName || ''} ${data.user.lastName || ''}`,
+          email: data.user.email || prev.email,
+          phone: data.user.phone || '',
+          address: data.user.address || prev.address
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
   useEffect(() => {
     const fetchLoyalty = async () => {
       try {
-        const res = await fetch('https://carcareconnect-backend.onrender.com/api/loyalty/my-points', {
+        const res = await fetch('http://localhost:5000/api/loyalty/my-points', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
@@ -112,9 +128,9 @@ function CustomerDashboard({ user, onLogout }) {
       }
     };
     fetchLoyalty();
+    fetchUserProfile();
   }, []);
 
-  // Listen for driver locations
   useEffect(() => {
     const unsubscribe = onDriverLiveLocation((data) => {
       console.log('📍 Driver location update:', data);
@@ -131,7 +147,6 @@ function CustomerDashboard({ user, onLogout }) {
     return () => unsubscribe && unsubscribe();
   }, [onDriverLiveLocation]);
 
-  // Listen for booking status changes
   useEffect(() => {
     const unsubscribe = onBookingStatusChanged((data) => {
       console.log('📅 Booking status changed:', data);
@@ -145,7 +160,6 @@ function CustomerDashboard({ user, onLogout }) {
       } else if (data.status === 'completed') {
         toast.success(`Service completed!`);
         sendPushNotification('Service Completed', 'Your service is complete!');
-        fetchLoyalty();
       } else if (data.status === 'cancelled') {
         toast.warning(`Booking cancelled`);
       } else if (data.status === 'driver-assigned') {
@@ -155,7 +169,6 @@ function CustomerDashboard({ user, onLogout }) {
     return () => unsubscribe && unsubscribe();
   }, [onBookingStatusChanged]);
 
-  // Listen for notifications
   useEffect(() => {
     const unsubscribe = onNewNotification((notification) => {
       setNotifications(prev => [notification, ...prev]);
@@ -166,7 +179,6 @@ function CustomerDashboard({ user, onLogout }) {
     return () => unsubscribe && unsubscribe();
   }, [onNewNotification]);
 
-  // Subscribe to drivers for active bookings
   useEffect(() => {
     bookings.forEach(booking => {
       if (booking.driverId && (booking.status === 'confirmed' || booking.status === 'in-progress' || booking.status === 'driver-assigned')) {
@@ -181,7 +193,6 @@ function CustomerDashboard({ user, onLogout }) {
     };
   }, [bookings]);
 
-  // Fetch all data
   useEffect(() => {
     fetchAllData();
   }, []);
@@ -193,7 +204,8 @@ function CustomerDashboard({ user, onLogout }) {
         fetchServices(),
         fetchVehicles(),
         fetchBookings(),
-        fetchPaymentHistory()
+        fetchPaymentHistory(),
+        fetchUserProfile()
       ]);
     } catch (error) {
       console.error('Error:', error);
@@ -204,7 +216,7 @@ function CustomerDashboard({ user, onLogout }) {
 
   const fetchServices = async () => {
     try {
-      let url = 'https://carcareconnect-backend.onrender.com/api/services';
+      let url = 'http://localhost:5000/api/services';
       const res = await fetch(url);
       const data = await res.json();
       if (data.success) setServices(data.services || []);
@@ -215,7 +227,7 @@ function CustomerDashboard({ user, onLogout }) {
 
   const fetchVehicles = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/services/customer/vehicles', {
+      const res = await fetch('http://localhost:5000/api/services/customer/vehicles', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -227,7 +239,7 @@ function CustomerDashboard({ user, onLogout }) {
 
   const fetchBookings = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/services/customer/bookings', {
+      const res = await fetch('http://localhost:5000/api/services/customer/bookings', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -240,7 +252,7 @@ function CustomerDashboard({ user, onLogout }) {
   const fetchPaymentHistory = async () => {
     setLoadingPayments(true);
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/payments/customer/history', {
+      const res = await fetch('http://localhost:5000/api/payments/customer/history', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -258,19 +270,24 @@ function CustomerDashboard({ user, onLogout }) {
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
       
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/customer/profile', {
+      const res = await fetch('http://localhost:5000/api/customer/profile', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 
+          'Content-Type': 'application/json', 
+          'Authorization': `Bearer ${token}` 
+        },
         body: JSON.stringify({
-          firstName, lastName,
+          firstName: firstName,
+          lastName: lastName,
           email: editProfileData.email,
           phone: editProfileData.phone,
           address: editProfileData.address
         })
       });
+      
       const data = await res.json();
       if (data.success) {
-        toast.success('Profile saved!');
+        toast.success('Profile saved successfully!');
         setProfile({
           ...profile,
           fullName: editProfileData.fullName,
@@ -279,15 +296,19 @@ function CustomerDashboard({ user, onLogout }) {
           address: editProfileData.address
         });
         setShowProfileModal(false);
+        fetchUserProfile();
+      } else {
+        toast.error(data.error || 'Failed to save profile');
       }
     } catch (error) {
+      console.error('Save profile error:', error);
       toast.error('Failed to save profile');
     }
   };
 
   const submitReview = async () => {
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/reviews/submit', {
+      const res = await fetch('http://localhost:5000/api/reviews/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -340,7 +361,7 @@ function CustomerDashboard({ user, onLogout }) {
         pickupAddress: bookingData.pickupAddress,
         notes: bookingData.notes
       };
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/services/customer/bookings', {
+      const res = await fetch('http://localhost:5000/api/services/customer/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(payload)
@@ -363,7 +384,7 @@ function CustomerDashboard({ user, onLogout }) {
   const addVehicle = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/services/customer/vehicles', {
+      const res = await fetch('http://localhost:5000/api/services/customer/vehicles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(newVehicle)
@@ -383,7 +404,7 @@ function CustomerDashboard({ user, onLogout }) {
   const deleteVehicle = async (vehicleId) => {
     if (window.confirm('Remove this vehicle?')) {
       try {
-        const res = await fetch(`https://carcareconnect-backend.onrender.com/api/services/customer/vehicles/${vehicleId}`, {
+        const res = await fetch(`http://localhost:5000/api/services/customer/vehicles/${vehicleId}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -400,7 +421,7 @@ function CustomerDashboard({ user, onLogout }) {
 
   const downloadInvoice = async (bookingId) => {
     try {
-      const res = await fetch(`https://carcareconnect-backend.onrender.com/api/invoices/download/${bookingId}`, {
+      const res = await fetch(`http://localhost:5000/api/invoices/download/${bookingId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -422,7 +443,7 @@ function CustomerDashboard({ user, onLogout }) {
       return;
     }
     try {
-      const res = await fetch('https://carcareconnect-backend.onrender.com/api/refunds/request', {
+      const res = await fetch('http://localhost:5000/api/refunds/request', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -457,7 +478,7 @@ function CustomerDashboard({ user, onLogout }) {
       'driver-assigned': { bg: '#e0e7ff', color: '#4338ca', icon: '🚗', label: 'Driver Assigned' }
     };
     const c = config[status] || { bg: '#f3f4f6', color: '#6b7280', icon: '📌', label: status };
-    return <span style={{ backgroundColor: c.bg, color: c.color, padding: '4px 10px', borderRadius: '20px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>{c.icon} {c.label}</span>;
+    return <Badge status={status}>{c.icon} {c.label}</Badge>;
   };
 
   const totalSpent = bookings.filter(b => b.status === 'completed').reduce((sum, b) => sum + (b.totalAmount || 0), 0);
@@ -483,33 +504,21 @@ function CustomerDashboard({ user, onLogout }) {
       width: sidebarCollapsed ? '80px' : '280px',
       backgroundColor: darkMode ? '#1e293b' : '#ffffff',
       transition: 'width 0.3s ease',
-      position: 'fixed',
-      height: '100vh',
-      overflow: 'hidden',
-      zIndex: 100,
-      boxShadow: '2px 0 8px rgba(0,0,0,0.05)'
+      position: 'fixed', height: '100vh', overflow: 'hidden', zIndex: 100, boxShadow: '2px 0 8px rgba(0,0,0,0.05)'
     },
     sidebarHeader: {
       padding: sidebarCollapsed ? '20px 0' : '24px 24px',
       borderBottom: '1px solid ' + (darkMode ? '#334155' : '#e5e7eb'),
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: sidebarCollapsed ? 'center' : 'space-between'
+      display: 'flex', alignItems: 'center', justifyContent: sidebarCollapsed ? 'center' : 'space-between'
     },
     logoIcon: { fontSize: '28px' },
     logoText: { fontSize: '18px', fontWeight: 'bold', marginLeft: '10px', display: sidebarCollapsed ? 'none' : 'block', color: darkMode ? 'white' : '#1f2937' },
     collapseBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', display: sidebarCollapsed ? 'none' : 'block', color: darkMode ? 'white' : '#6b7280' },
     sidebarMenu: { flex: 1, padding: '20px 0' },
     menuItem: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-      padding: sidebarCollapsed ? '12px 0' : '12px 24px',
-      margin: '4px 8px',
-      borderRadius: '10px',
-      cursor: 'pointer',
-      transition: 'all 0.2s ease',
-      justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+      display: 'flex', alignItems: 'center', gap: '12px',
+      padding: sidebarCollapsed ? '12px 0' : '12px 24px', margin: '4px 8px', borderRadius: '10px', cursor: 'pointer',
+      transition: 'all 0.2s ease', justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
       color: darkMode ? '#94a3b8' : '#6b7280'
     },
     menuItemActive: { backgroundColor: darkMode ? '#8b5cf620' : '#8b5cf610', color: '#8b5cf6' },
@@ -517,15 +526,9 @@ function CustomerDashboard({ user, onLogout }) {
     menuLabel: { fontSize: '14px', fontWeight: '500', display: sidebarCollapsed ? 'none' : 'block' },
     mainContent: { flex: 1, marginLeft: sidebarCollapsed ? '80px' : '280px', transition: 'margin-left 0.3s ease' },
     topHeader: {
-      backgroundColor: darkMode ? '#1e293b' : '#ffffff',
-      padding: '16px 30px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      borderBottom: '1px solid ' + (darkMode ? '#334155' : '#e5e7eb'),
-      position: 'sticky',
-      top: 0,
-      zIndex: 99
+      backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '16px 30px',
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      borderBottom: '1px solid ' + (darkMode ? '#334155' : '#e5e7eb'), position: 'sticky', top: 0, zIndex: 99
     },
     headerTitle: { fontSize: '20px', fontWeight: 'bold', color: darkMode ? 'white' : '#1f2937' },
     headerRight: { display: 'flex', alignItems: 'center', gap: '20px' },
@@ -540,22 +543,48 @@ function CustomerDashboard({ user, onLogout }) {
     logoutBtn: { backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' },
     contentArea: { padding: '24px 30px' },
     statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' },
-    statCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+    statCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '20px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', transition: 'all 0.3s ease' },
     statIcon: { fontSize: '32px' },
     statInfo: { flex: 1 },
     statValue: { fontSize: '24px', fontWeight: 'bold', color: '#8b5cf6' },
     statLabel: { fontSize: '12px', color: '#6b7280' },
-    welcomeCard: { backgroundColor: '#8b5cf6', padding: '24px', borderRadius: '12px', color: 'white', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' },
+    welcomeCard: {
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      padding: '28px',
+      borderRadius: '20px',
+      color: 'white',
+      marginBottom: '24px',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: '15px',
+      boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'
+    },
     loyaltyBadge: { backgroundColor: 'rgba(255,255,255,0.2)', padding: '8px 16px', borderRadius: '20px', fontSize: '13px' },
     twoColumn: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' },
-    card: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '20px', borderRadius: '12px', marginBottom: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+    card: {
+      backgroundColor: darkMode ? '#1e293b' : '#ffffff',
+      padding: '20px',
+      borderRadius: '16px',
+      marginBottom: '20px',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      transition: 'all 0.3s ease'
+    },
     cardTitle: { fontSize: '16px', fontWeight: 'bold', marginBottom: '15px', color: darkMode ? 'white' : '#374151' },
     filtersBar: { display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' },
     filterSelect: { padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', backgroundColor: darkMode ? '#334155' : 'white', color: darkMode ? 'white' : '#374151' },
     filterInput: { padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', flex: 2, backgroundColor: darkMode ? '#334155' : 'white', color: darkMode ? 'white' : '#374151' },
     filterBtn: { backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '8px 20px', borderRadius: '8px', cursor: 'pointer' },
     servicesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' },
-    serviceCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+    serviceCard: {
+      backgroundColor: darkMode ? '#1e293b' : '#ffffff',
+      padding: '20px',
+      borderRadius: '16px',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      transition: 'all 0.3s ease',
+      cursor: 'pointer'
+    },
     serviceName: { fontSize: '18px', fontWeight: 'bold', marginBottom: '8px', color: darkMode ? 'white' : '#1f2937' },
     providerName: { fontSize: '13px', color: '#8b5cf6', marginBottom: '10px' },
     servicePrice: { display: 'flex', justifyContent: 'space-between', margin: '15px 0' },
@@ -565,7 +594,14 @@ function CustomerDashboard({ user, onLogout }) {
     vehicleCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '15px', borderRadius: '12px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
     addVehicleBtn: { backgroundColor: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', marginBottom: '20px' },
     deleteVehicleBtn: { backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' },
-    bookingCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '20px', borderRadius: '12px', marginBottom: '15px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+    bookingCard: {
+      backgroundColor: darkMode ? '#1e293b' : '#ffffff',
+      padding: '20px',
+      borderRadius: '16px',
+      marginBottom: '15px',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      transition: 'all 0.3s ease'
+    },
     bookingHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' },
     bookingTitle: { fontSize: '16px', fontWeight: 'bold', color: darkMode ? 'white' : '#1f2937' },
     bookingDetails: { display: 'flex', gap: '20px', fontSize: '13px', color: '#6b7280', marginBottom: '15px', flexWrap: 'wrap' },
@@ -573,14 +609,14 @@ function CustomerDashboard({ user, onLogout }) {
     reviewBtn: { backgroundColor: '#f59e0b', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', marginTop: '10px', marginLeft: '10px' },
     refundBtn: { backgroundColor: '#f97316', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', marginTop: '10px', marginLeft: '10px' },
     emailBtn: { backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', textDecoration: 'none', display: 'inline-block', marginTop: '10px', marginLeft: '10px' },
-    profileContainer: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '30px', borderRadius: '12px' },
+    profileContainer: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '30px', borderRadius: '16px' },
     profileAvatar: { width: '100px', height: '100px', borderRadius: '50%', backgroundColor: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', color: 'white', margin: '0 auto 20px' },
     profileInfo: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px', marginBottom: '20px' },
     editProfileBtn: { backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' },
     enableNotificationsBtn: { backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', marginTop: '10px' },
     modal: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-    modalContent: { backgroundColor: darkMode ? '#1e293b' : 'white', padding: '24px', borderRadius: '12px', maxWidth: '500px', width: '90%', maxHeight: '80vh', overflow: 'auto' },
-    modalContentSmall: { backgroundColor: darkMode ? '#1e293b' : 'white', padding: '24px', borderRadius: '12px', maxWidth: '400px', width: '90%' },
+    modalContent: { backgroundColor: darkMode ? '#1e293b' : 'white', padding: '24px', borderRadius: '16px', maxWidth: '500px', width: '90%', maxHeight: '80vh', overflow: 'auto' },
+    modalContentSmall: { backgroundColor: darkMode ? '#1e293b' : 'white', padding: '24px', borderRadius: '16px', maxWidth: '400px', width: '90%' },
     input: { width: '100%', padding: '10px', marginBottom: '12px', border: '1px solid #d1d5db', borderRadius: '8px', backgroundColor: darkMode ? '#334155' : 'white', color: darkMode ? 'white' : '#374151' },
     textarea: { width: '100%', padding: '10px', marginBottom: '12px', border: '1px solid #d1d5db', borderRadius: '8px', minHeight: '80px', backgroundColor: darkMode ? '#334155' : 'white', color: darkMode ? 'white' : '#374151' },
     label: { display: 'block', marginBottom: '8px', fontWeight: '500', color: darkMode ? 'white' : '#374151' },
@@ -607,7 +643,6 @@ function CustomerDashboard({ user, onLogout }) {
     <div style={styles.container}>
       <ToastContainer position="top-right" />
       
-      {/* Sidebar */}
       <div style={styles.sidebar}>
         <div style={styles.sidebarHeader}>
           <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -636,9 +671,7 @@ function CustomerDashboard({ user, onLogout }) {
         </div>
       </div>
 
-      {/* Main Content */}
       <div style={styles.mainContent}>
-        {/* Top Header */}
         <div style={styles.topHeader}>
           <div style={styles.headerTitle}>
             {menuItems.find(m => m.id === activeTab)?.label || 'Dashboard'}
@@ -657,10 +690,10 @@ function CustomerDashboard({ user, onLogout }) {
             </button>
             <div style={styles.userInfo}>
               <div style={styles.avatar}>
-                {user?.firstName?.charAt(0) || 'U'}
+                {profile.fullName.charAt(0) || 'U'}
               </div>
               <div>
-                <div style={styles.userName}>{user?.firstName} {user?.lastName}</div>
+                <div style={styles.userName}>{profile.fullName}</div>
                 <div style={{ fontSize: '11px', color: '#8b5cf6' }}>⭐ {loyaltyPoints} points</div>
               </div>
               <button style={styles.logoutBtn} onClick={onLogout}>Logout</button>
@@ -668,7 +701,6 @@ function CustomerDashboard({ user, onLogout }) {
           </div>
         </div>
 
-        {/* Notification Dropdown */}
         {showNotifications && (
           <div style={{
             position: 'absolute', top: '70px', right: '30px', width: '350px', backgroundColor: 'white',
@@ -695,9 +727,7 @@ function CustomerDashboard({ user, onLogout }) {
           </div>
         )}
 
-        {/* Content Area */}
         <div style={styles.contentArea}>
-          {/* Stats Cards */}
           <div style={styles.statsGrid}>
             <div style={styles.statCard}><div style={styles.statIcon}>🚗</div><div style={styles.statInfo}><div style={styles.statValue}>{vehicles.length}</div><div style={styles.statLabel}>Vehicles</div></div></div>
             <div style={styles.statCard}><div style={styles.statIcon}>📅</div><div style={styles.statInfo}><div style={styles.statValue}>{bookings.length}</div><div style={styles.statLabel}>Total Bookings</div></div></div>
@@ -705,11 +735,10 @@ function CustomerDashboard({ user, onLogout }) {
             <div style={styles.statCard}><div style={styles.statIcon}>💎</div><div style={styles.statInfo}><div style={styles.statValue}>{loyaltyPoints}</div><div style={styles.statLabel}>Loyalty Points</div><div style={{ fontSize: '11px', color: '#8b5cf6' }}>{loyaltyTier} Tier</div></div></div>
           </div>
 
-          {/* Dashboard Tab */}
           {activeTab === 'dashboard' && (
             <div>
               <div style={styles.welcomeCard}>
-                <div><h2 style={{ margin: '0 0 5px 0' }}>Welcome back, {user?.firstName}! 👋</h2><p style={{ margin: 0, opacity: 0.9 }}>Your next service is just a click away</p></div>
+                <div><h2 style={{ margin: '0 0 5px 0' }}>Welcome back!</h2><p style={{ margin: 0, opacity: 0.9 }}>Your next service is just a click away</p></div>
                 <span style={styles.loyaltyBadge}>⭐ {loyaltyPoints} loyalty points</span>
               </div>
               <div style={styles.twoColumn}>
@@ -724,12 +753,6 @@ function CustomerDashboard({ user, onLogout }) {
                           <div><strong>{booking.serviceName}</strong></div>
                           <div style={{ fontSize: '13px', color: '#6b7280' }}>{new Date(booking.bookingDate).toLocaleDateString()} at {booking.bookingTime}</div>
                           <div style={{ marginTop: '8px' }}>{getStatusBadge(booking.status)}</div>
-                          {booking.driverId && driverLocations[booking.driverId] && (
-                            <div style={styles.driverLocationCard}>
-                              <div style={styles.driverLocationHeader}>🚗 Driver Location</div>
-                              <div style={styles.driverLocationInfo}>📍 {driverLocations[booking.driverId].address}</div>
-                            </div>
-                          )}
                         </div>
                       ))
                     )}
@@ -751,7 +774,6 @@ function CustomerDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Services Tab */}
           {activeTab === 'services' && (
             <div>
               <div style={styles.filtersBar}>
@@ -787,7 +809,6 @@ function CustomerDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Vehicles Tab */}
           {activeTab === 'vehicles' && (
             <div>
               <button style={styles.addVehicleBtn} onClick={() => setShowVehicleModal(true)}>+ Add Vehicle</button>
@@ -807,7 +828,6 @@ function CustomerDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Bookings Tab with Map Integration */}
           {activeTab === 'bookings' && (
             <div>
               {bookings.length === 0 ? (
@@ -829,7 +849,6 @@ function CustomerDashboard({ user, onLogout }) {
                       {booking.isConcierge && <span>🚗 Concierge Service</span>}
                     </div>
                     
-                    {/* Driver Map - Shows when driver assigned */}
                     {booking.driverId && driverLocations[booking.driverId] && (booking.status === 'confirmed' || booking.status === 'in-progress' || booking.status === 'driver-assigned') && (
                       <DriverMap 
                         driverLocation={driverLocations[booking.driverId]}
@@ -838,36 +857,28 @@ function CustomerDashboard({ user, onLogout }) {
                       />
                     )}
                     
-                    {/* Action Buttons */}
                     {(booking.status === 'completed' || booking.status === 'confirmed') && (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '10px' }}>
                         <button style={styles.invoiceBtn} onClick={() => downloadInvoice(booking._id)}>📄 Download Invoice</button>
                         
                         {booking.status === 'completed' && (
-                          <button 
-                            onClick={() => {
-                              setSelectedBookingForReview(booking);
-                              setShowReviewModal(true);
-                            }} 
-                            style={styles.reviewBtn}
-                          >
-                            ⭐ Rate Experience
-                          </button>
+                          <button onClick={() => { setSelectedBookingForReview(booking); setShowReviewModal(true); }} style={styles.reviewBtn}>⭐ Rate Experience</button>
                         )}
                         
                         {booking.status === 'completed' && booking.paymentStatus === 'paid' && (
-                          <button 
-                            onClick={() => {
-                              setSelectedBookingForRefund(booking);
-                              setShowRefundModal(true);
-                            }} 
-                            style={styles.refundBtn}
-                          >
-                            🔄 Request Refund
-                          </button>
+                          <button onClick={() => { setSelectedBookingForRefund(booking); setShowRefundModal(true); }} style={styles.refundBtn}>🔄 Request Refund</button>
                         )}
                         
                         <a href={`https://mail.google.com/mail/?view=cm&fs=1&to=${booking.providerId?.email}&su=Question about ${booking.serviceName}&body=Hello%20${booking.providerId?.firstName || 'Provider'},%0D%0A%0D%0AI have a question about my booking for ${booking.serviceName} on ${new Date(booking.bookingDate).toLocaleDateString()}.%0D%0A%0D%0AThank you!`} target="_blank" style={styles.emailBtn}>✉️ Message Provider</a>
+                        
+                        {booking.providerId?.phone && (
+                          <WhatsAppButton 
+                            phoneNumber={booking.providerId.phone}
+                            message={`Hello ${booking.providerId?.firstName || 'Provider'}, I have a question about my booking for ${booking.serviceName} on ${new Date(booking.bookingDate).toLocaleDateString()}. Thank you!`}
+                          >
+                            💬 WhatsApp Provider
+                          </WhatsAppButton>
+                        )}
                       </div>
                     )}
                   </div>
@@ -876,7 +887,6 @@ function CustomerDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Payments Tab */}
           {activeTab === 'payments' && (
             <div>
               {loadingPayments ? (
@@ -900,7 +910,6 @@ function CustomerDashboard({ user, onLogout }) {
             </div>
           )}
 
-          {/* Profile Tab */}
           {activeTab === 'profile' && (
             <div style={styles.profileContainer}>
               <div style={styles.profileAvatar}>
@@ -909,17 +918,24 @@ function CustomerDashboard({ user, onLogout }) {
               <div style={styles.profileInfo}>
                 <div><strong>Full Name:</strong> {profile.fullName}</div>
                 <div><strong>Email:</strong> {profile.email}</div>
-                <div><strong>Phone:</strong> {profile.phone}</div>
+                <div><strong>Phone:</strong> {profile.phone || 'Not set'}</div>
                 <div><strong>Address:</strong> {profile.address || 'Not set'}</div>
                 <div><strong>Member Since:</strong> {profile.memberSince}</div>
                 <div><strong>Loyalty Points:</strong> {loyaltyPoints}</div>
                 <div><strong>Loyalty Tier:</strong> {loyaltyTier}</div>
               </div>
-              <button style={styles.editProfileBtn} onClick={() => { setEditProfileData({ fullName: profile.fullName, email: profile.email, phone: profile.phone, address: profile.address }); setShowProfileModal(true); }}>✏️ Edit Profile</button>
+              <button style={styles.editProfileBtn} onClick={() => { 
+                setEditProfileData({ 
+                  fullName: profile.fullName, 
+                  email: profile.email, 
+                  phone: profile.phone || '', 
+                  address: profile.address || '' 
+                }); 
+                setShowProfileModal(true); 
+              }}>✏️ Edit Profile</button>
             </div>
           )}
 
-          {/* Settings Tab */}
           {activeTab === 'settings' && (
             <div style={styles.card}>
               <div style={styles.cardTitle}>⚙️ Settings</div>
@@ -935,7 +951,6 @@ function CustomerDashboard({ user, onLogout }) {
         </div>
       </div>
 
-      {/* Review Modal */}
       {showReviewModal && selectedBookingForReview && (
         <div style={styles.modal}>
           <div style={styles.modalContent}>
@@ -949,44 +964,20 @@ function CustomerDashboard({ user, onLogout }) {
             <label style={styles.label}>Rate the Provider</label>
             <div style={styles.reviewStars}>
               {[1, 2, 3, 4, 5].map(star => (
-                <span
-                  key={star}
-                  onClick={() => setReviewRating(star)}
-                  style={{ ...styles.star, color: star <= reviewRating ? '#f59e0b' : '#d1d5db' }}
-                >
-                  ★
-                </span>
+                <span key={star} onClick={() => setReviewRating(star)} style={{ fontSize: '24px', cursor: 'pointer', color: star <= reviewRating ? '#f59e0b' : '#d1d5db' }}>★</span>
               ))}
             </div>
-            <textarea
-              style={styles.textarea}
-              rows="3"
-              placeholder="Share your experience with the provider..."
-              value={reviewText}
-              onChange={(e) => setReviewText(e.target.value)}
-            />
+            <textarea style={styles.textarea} rows="3" placeholder="Share your experience with the provider..." value={reviewText} onChange={(e) => setReviewText(e.target.value)} />
             
             {selectedBookingForReview.driverId && (
               <>
                 <label style={styles.label}>Rate the Driver</label>
                 <div style={styles.reviewStars}>
                   {[1, 2, 3, 4, 5].map(star => (
-                    <span
-                      key={star}
-                      onClick={() => setDriverRating(star)}
-                      style={{ ...styles.star, color: star <= driverRating ? '#f59e0b' : '#d1d5db' }}
-                    >
-                      ★
-                    </span>
+                    <span key={star} onClick={() => setDriverRating(star)} style={{ fontSize: '24px', cursor: 'pointer', color: star <= driverRating ? '#f59e0b' : '#d1d5db' }}>★</span>
                   ))}
                 </div>
-                <textarea
-                  style={styles.textarea}
-                  rows="3"
-                  placeholder="Share your experience with the driver..."
-                  value={driverReviewText}
-                  onChange={(e) => setDriverReviewText(e.target.value)}
-                />
+                <textarea style={styles.textarea} rows="3" placeholder="Share your experience with the driver..." value={driverReviewText} onChange={(e) => setDriverReviewText(e.target.value)} />
               </>
             )}
             
@@ -998,7 +989,6 @@ function CustomerDashboard({ user, onLogout }) {
         </div>
       )}
 
-      {/* Refund Modal */}
       {showRefundModal && selectedBookingForRefund && (
         <div style={styles.modal}>
           <div style={styles.modalContent}>
@@ -1009,13 +999,7 @@ function CustomerDashboard({ user, onLogout }) {
               <p><strong>Booking Date:</strong> {new Date(selectedBookingForRefund.bookingDate).toLocaleDateString()}</p>
             </div>
             <label style={styles.label}>Reason for Refund *</label>
-            <textarea
-              style={styles.textarea}
-              rows="4"
-              placeholder="Please explain why you are requesting a refund..."
-              value={refundReason}
-              onChange={(e) => setRefundReason(e.target.value)}
-            />
+            <textarea style={styles.textarea} rows="4" placeholder="Please explain why you are requesting a refund..." value={refundReason} onChange={(e) => setRefundReason(e.target.value)} />
             <div style={styles.modalActions}>
               <button style={styles.submitBtn} onClick={requestRefund}>Submit Refund Request</button>
               <button style={styles.cancelBtn} onClick={() => setShowRefundModal(false)}>Cancel</button>
@@ -1024,7 +1008,6 @@ function CustomerDashboard({ user, onLogout }) {
         </div>
       )}
 
-      {/* Booking Modal */}
       {showBookingModal && selectedService && (
         <div style={styles.modal}>
           <div style={styles.modalContent}>
@@ -1057,7 +1040,6 @@ function CustomerDashboard({ user, onLogout }) {
         </div>
       )}
 
-      {/* Payment Modal */}
       {showPaymentModal && pendingBooking && (
         <Elements stripe={stripePromise}>
           <PaymentModal 
@@ -1069,15 +1051,38 @@ function CustomerDashboard({ user, onLogout }) {
         </Elements>
       )}
 
-      {/* Profile Modal */}
       {showProfileModal && (
         <div style={styles.modal}>
           <div style={styles.modalContent}>
             <h2 style={{ marginBottom: '20px' }}>Edit Profile</h2>
-            <input style={styles.input} type="text" placeholder="Full Name" value={editProfileData.fullName} onChange={(e) => setEditProfileData({...editProfileData, fullName: e.target.value})} />
-            <input style={styles.input} type="email" placeholder="Email" value={editProfileData.email} onChange={(e) => setEditProfileData({...editProfileData, email: e.target.value})} />
-            <input style={styles.input} type="tel" placeholder="Phone" value={editProfileData.phone} onChange={(e) => setEditProfileData({...editProfileData, phone: e.target.value})} />
-            <input style={styles.input} type="text" placeholder="Address" value={editProfileData.address} onChange={(e) => setEditProfileData({...editProfileData, address: e.target.value})} />
+            <input 
+              style={styles.input} 
+              type="text" 
+              placeholder="Full Name" 
+              value={editProfileData.fullName} 
+              onChange={(e) => setEditProfileData({...editProfileData, fullName: e.target.value})} 
+            />
+            <input 
+              style={styles.input} 
+              type="email" 
+              placeholder="Email" 
+              value={editProfileData.email} 
+              onChange={(e) => setEditProfileData({...editProfileData, email: e.target.value})} 
+            />
+            <input 
+              style={styles.input} 
+              type="tel" 
+              placeholder="Phone Number" 
+              value={editProfileData.phone} 
+              onChange={(e) => setEditProfileData({...editProfileData, phone: e.target.value})} 
+            />
+            <input 
+              style={styles.input} 
+              type="text" 
+              placeholder="Address" 
+              value={editProfileData.address} 
+              onChange={(e) => setEditProfileData({...editProfileData, address: e.target.value})} 
+            />
             <div style={styles.modalActions}>
               <button style={styles.submitBtn} onClick={saveProfile}>Save Changes</button>
               <button style={styles.cancelBtn} onClick={() => setShowProfileModal(false)}>Cancel</button>
@@ -1086,7 +1091,6 @@ function CustomerDashboard({ user, onLogout }) {
         </div>
       )}
 
-      {/* Vehicle Modal */}
       {showVehicleModal && (
         <div style={styles.modal}>
           <div style={styles.modalContentSmall}>

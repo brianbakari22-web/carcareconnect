@@ -1,0 +1,1258 @@
+import React, { useState, useEffect } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { useSocket } from '../hooks/useSocket';
+import { StatCard, ModernButton, Badge } from '../components/ModernUI';
+import { initializePushNotifications, requestNotificationPermission, sendPushNotification } from '../utils/pushNotifications';
+
+  // Check if user is admin - redirect if not
+  useEffect(() => {
+    const adminUser = localStorage.getItem('adminUser');
+    const adminToken = localStorage.getItem('adminToken');
+    if (!adminUser || !adminToken) {
+      window.location.href = '/carcare-admin-2026';
+    }
+  }, []);
+function AdminDashboard({ user, onLogout }) {`n  // Check if user is admin - redirect if not`n  useEffect(() => {`n    const adminUser = localStorage.getItem(`"adminUser`");`n    const adminToken = localStorage.getItem(`"adminToken`");`n    if (!adminUser || !adminToken) {`n      window.location.href = `"/carcare-admin-2026`";`n    }`n  }, []);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [users, setUsers] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [services, setServices] = useState([]);
+  const [refunds, setRefunds] = useState([]);
+  const [selectedRefund, setSelectedRefund] = useState(null);
+  const [adminNotes, setAdminNotes] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [paymentAnalytics, setPaymentAnalytics] = useState({ monthlyRevenue: [], paymentMethods: [], topProviders: [], recentTransactions: [] });
+  const [pendingPayouts, setPendingPayouts] = useState({ providerPayouts: [], driverPayouts: [] });
+  const [loading, setLoading] = useState(true);
+  const [filterRole, setFilterRole] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [darkMode, setDarkMode] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [allReviews, setAllReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [promoCodes, setPromoCodes] = useState([]);
+  const [showPromoModal, setShowPromoModal] = useState(false);
+  const [newPromoCode, setNewPromoCode] = useState({
+    code: '', description: '', discountType: 'percentage', discountValue: '', minPurchase: '', usageLimit: '', validUntil: ''
+  });
+  const [loyaltyLeaderboard, setLoyaltyLeaderboard] = useState([]);
+  const [loyaltyStats, setLoyaltyStats] = useState({ totalPoints: 0, totalUsers: 0, averagePoints: 0 });
+
+  const [stats, setStats] = useState({
+    users: { total: 0, customers: 0, providers: 0, drivers: 0 },
+    services: { total: 0 },
+    bookings: { total: 0, completed: 0, pending: 0, cancelled: 0 },
+    payments: { totalRevenue: 0, totalCommission: 0, totalProviderPayouts: 0, totalDriverPayouts: 0, totalTransactions: 0, monthlyGrowth: 0, pendingProviderPayouts: 0, pendingDriverPayouts: 0 },
+    platform: { rating: 0, totalReviews: 0 }
+  });
+
+  const [onlineUsers, setOnlineUsers] = useState({ providers: [], drivers: [] });
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [liveActivity, setLiveActivity] = useState([]);
+
+  const token = localStorage.getItem('token');
+
+  useEffect(() => {
+    initializePushNotifications();
+  }, []);
+
+  const { 
+    isConnected,
+    onDriverStatusChange,
+    onBookingStatusChanged,
+    onNewNotification
+  } = useSocket();
+
+  useEffect(() => {
+    const unsubscribe = onDriverStatusChange((data) => {
+      console.log('Driver status change:', data);
+      setOnlineUsers(prev => {
+        const updatedDrivers = [...prev.drivers];
+        if (data.isOnline) {
+          if (!updatedDrivers.some(d => d.id === data.driverId)) {
+            updatedDrivers.push({ id: data.driverId, name: data.driverName, isOnline: true, lastSeen: new Date() });
+          }
+        } else {
+          const index = updatedDrivers.findIndex(d => d.id === data.driverId);
+          if (index !== -1) updatedDrivers.splice(index, 1);
+        }
+        return { ...prev, drivers: updatedDrivers };
+      });
+      setLiveActivity(prev => [{
+        id: Date.now(),
+        type: 'driver_status',
+        message: `${data.driverName || 'A driver'} is now ${data.isOnline ? 'ONLINE' : 'OFFLINE'}`,
+        timestamp: new Date()
+      }, ...prev].slice(0, 20));
+      toast.info(`${data.driverName || 'Driver'} ${data.isOnline ? 'went online' : 'went offline'}`);
+      sendPushNotification('Driver Status', `${data.driverName || 'A driver'} is now ${data.isOnline ? 'online' : 'offline'}`);
+    });
+    return () => unsubscribe && unsubscribe();
+  }, [onDriverStatusChange]);
+
+  useEffect(() => {
+    const unsubscribe = onBookingStatusChanged((data) => {
+      console.log('Booking status change:', data);
+      fetchStats();
+      fetchBookings();
+      setLiveActivity(prev => [{
+        id: Date.now(),
+        type: 'booking_status',
+        message: `Booking #${data.bookingId?.slice(-6)} status changed to ${data.status}`,
+        timestamp: new Date()
+      }, ...prev].slice(0, 20));
+      sendPushNotification('Booking Update', `Booking ${data.bookingId} status changed to ${data.status}`);
+    });
+    return () => unsubscribe && unsubscribe();
+  }, [onBookingStatusChanged]);
+
+  useEffect(() => {
+    const unsubscribe = onNewNotification((notification) => {
+      console.log('New notification:', notification);
+      setNotifications(prev => [notification, ...prev]);
+      setUnreadCount(prev => prev + 1);
+      setLiveActivity(prev => [{
+        id: Date.now(),
+        type: 'notification',
+        message: notification.message,
+        timestamp: new Date()
+      }, ...prev].slice(0, 20));
+      sendPushNotification(notification.title || 'New Notification', notification.message);
+    });
+    return () => unsubscribe && unsubscribe();
+  }, [onNewNotification]);
+
+  const fetchOnlineUsers = async () => {
+    try {
+      const driversRes = await fetch('http://localhost:5000/api/driver/online');
+      const driversData = await driversRes.json();
+      if (driversData.success) {
+        setOnlineUsers(prev => ({ ...prev, drivers: driversData.drivers || [] }));
+      }
+    } catch (error) {
+      console.error('Error fetching online users:', error);
+    }
+  };
+
+  const downloadInvoice = async (transactionId) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/invoices/download/${transactionId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => window.URL.revokeObjectURL(url), 100);
+        toast.success('Invoice opened');
+      } else {
+        toast.error('Failed to download invoice');
+      }
+    } catch (err) {
+      toast.error('Error downloading invoice');
+    }
+  };
+
+  useEffect(() => {
+    fetchAllData();
+    fetchOnlineUsers();
+    fetchPromoCodes();
+    fetchLoyaltyLeaderboard();
+    const interval = setInterval(fetchOnlineUsers, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchAllData = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        fetchStats(),
+        fetchUsers(),
+        fetchBookings(),
+        fetchServices(),
+        fetchPaymentAnalytics(),
+        fetchPendingPayouts(),
+        fetchRefunds(),
+        fetchAllReviews()
+      ]);
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/admin/stats', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) setStats(data.stats);
+    } catch (error) { console.error(error); }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/admin/users', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) setUsers(data.users);
+    } catch (error) { console.error(error); }
+  };
+
+  const fetchBookings = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/admin/bookings', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) setBookings(data.bookings);
+    } catch (error) { console.error(error); }
+  };
+
+  const fetchServices = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/admin/services', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) setServices(data.services);
+    } catch (error) { console.error(error); }
+  };
+
+  const fetchPaymentAnalytics = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/admin/payment-analytics', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) setPaymentAnalytics(data.analytics);
+    } catch (error) { console.error(error); }
+  };
+
+  const fetchPendingPayouts = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/admin/pending-payouts', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) setPendingPayouts(data);
+    } catch (error) { console.error(error); }
+  };
+
+  const fetchRefunds = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/refunds/all', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) setRefunds(data.refunds);
+    } catch (error) { console.error(error); }
+  };
+
+  const fetchAllReviews = async () => {
+    setReviewsLoading(true);
+    try {
+      const res = await fetch('http://localhost:5000/api/reviews/all', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) setAllReviews(data.reviews);
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  const hideReview = async (reviewId) => {
+    if (window.confirm('Hide this review? It will no longer be visible to users.')) {
+      try {
+        const res = await fetch(`http://localhost:5000/api/reviews/hide/${reviewId}`, {
+          method: 'PUT',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          toast.success('Review hidden');
+          fetchAllReviews();
+        }
+      } catch (error) {
+        toast.error('Failed to hide review');
+      }
+    }
+  };
+
+  const fetchPromoCodes = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/promo/all', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) setPromoCodes(data.promoCodes);
+    } catch (error) {
+      console.error('Error fetching promo codes:', error);
+    }
+  };
+
+  const createPromoCode = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('http://localhost:5000/api/promo/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...newPromoCode,
+          discountValue: parseFloat(newPromoCode.discountValue),
+          minPurchase: parseFloat(newPromoCode.minPurchase) || 0,
+          usageLimit: parseInt(newPromoCode.usageLimit) || 1
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Promo code created!');
+        setShowPromoModal(false);
+        setNewPromoCode({
+          code: '', description: '', discountType: 'percentage', discountValue: '', minPurchase: '', usageLimit: '', validUntil: ''
+        });
+        fetchPromoCodes();
+      } else {
+        toast.error(data.error || 'Failed to create promo code');
+      }
+    } catch (error) {
+      toast.error('Failed to create promo code');
+    }
+  };
+
+  const deletePromoCode = async (id, code) => {
+    if (window.confirm(`Delete promo code "${code}"?`)) {
+      try {
+        const res = await fetch(`http://localhost:5000/api/promo/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          toast.success('Promo code deleted');
+          fetchPromoCodes();
+        }
+      } catch (error) {
+        toast.error('Failed to delete promo code');
+      }
+    }
+  };
+
+  const fetchLoyaltyLeaderboard = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/loyalty/leaderboard');
+      const data = await res.json();
+      if (data.success) {
+        setLoyaltyLeaderboard(data.leaderboard);
+        const totalPoints = data.leaderboard.reduce((sum, l) => sum + l.lifetimePoints, 0);
+        setLoyaltyStats({
+          totalPoints,
+          totalUsers: data.leaderboard.length,
+          averagePoints: data.leaderboard.length > 0 ? Math.round(totalPoints / data.leaderboard.length) : 0
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching loyalty leaderboard:', error);
+    }
+  };
+
+  const updateUserStatus = async (userId, isActive) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ isActive })
+      });
+      if (res.ok) {
+        toast.success(`User ${isActive ? 'activated' : 'suspended'}`);
+        fetchUsers();
+        fetchStats();
+        sendPushNotification('User Status', `User has been ${isActive ? 'activated' : 'suspended'}`);
+      }
+    } catch (error) {
+      toast.error('Failed to update user');
+    }
+  };
+
+  const verifyUser = async (userId, role) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ isVerified: true })
+      });
+      if (res.ok) {
+        toast.success(`${role} verified successfully`);
+        fetchUsers();
+        sendPushNotification('Verification Complete', `${role} account has been verified`);
+      }
+    } catch (error) {
+      toast.error('Failed to verify');
+    }
+  };
+
+  const deleteUser = async (userId, name) => {
+    if (window.confirm(`Delete ${name}? This action cannot be undone.`)) {
+      try {
+        await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        toast.success('User deleted');
+        fetchUsers();
+        fetchStats();
+      } catch (error) {
+        toast.error('Failed to delete');
+      }
+    }
+  };
+
+  const toggleServiceStatus = async (serviceId, isActive) => {
+    try {
+      await fetch(`http://localhost:5000/api/admin/services/${serviceId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ isActive: !isActive })
+      });
+      toast.success(`Service ${!isActive ? 'activated' : 'hidden'}`);
+      fetchServices();
+    } catch (error) {
+      toast.error('Failed to update');
+    }
+  };
+
+  const processPayout = async (userId, type) => {
+    try {
+      await fetch('http://localhost:5000/api/admin/process-payout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ userId, type })
+      });
+      toast.success('Payout processed');
+      fetchPendingPayouts();
+      fetchStats();
+      sendPushNotification('Payout Processed', `A ${type} payout has been processed`);
+    } catch (error) {
+      toast.error('Failed to process payout');
+    }
+  };
+
+  const approveRefund = async (refundId) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/refunds/${refundId}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ adminNotes })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Refund approved!');
+        fetchRefunds();
+        setSelectedRefund(null);
+        setAdminNotes('');
+        sendPushNotification('Refund Approved', 'A refund request has been approved');
+      } else {
+        toast.error(data.error || 'Failed to approve refund');
+      }
+    } catch (error) {
+      toast.error('Failed to approve refund');
+    }
+  };
+
+  const rejectRefund = async (refundId) => {
+    if (!rejectionReason) {
+      toast.error('Please provide a rejection reason');
+      return;
+    }
+    try {
+      const res = await fetch(`http://localhost:5000/api/refunds/${refundId}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ rejectionReason })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Refund rejected');
+        fetchRefunds();
+        setSelectedRefund(null);
+        setRejectionReason('');
+      } else {
+        toast.error(data.error || 'Failed to reject refund');
+      }
+    } catch (error) {
+      toast.error('Failed to reject refund');
+    }
+  };
+
+  const getRoleBadge = (role) => {
+    const config = {
+      customer: { bg: '#d1fae5', color: '#065f46', icon: '👤', label: 'Customer' },
+      provider: { bg: '#e0e7ff', color: '#4338ca', icon: '🔧', label: 'Provider' },
+      driver: { bg: '#fef3c7', color: '#92400e', icon: '🚗', label: 'Driver' },
+      admin: { bg: '#f3e8ff', color: '#7c3aed', icon: '👑', label: 'Admin' }
+    };
+    const c = config[role] || { bg: '#f3f4f6', color: '#6b7280', icon: '❓', label: role };
+    return <Badge status={role}>{c.icon} {c.label}</Badge>;
+  };
+
+  const getStatusBadge = (status) => {
+    const config = {
+      pending: { bg: '#fef3c7', color: '#92400e', icon: '⏳', label: 'Pending' },
+      confirmed: { bg: '#d1fae5', color: '#065f46', icon: '✅', label: 'Confirmed' },
+      'in-progress': { bg: '#e0e7ff', color: '#4338ca', icon: '🔧', label: 'In Progress' },
+      completed: { bg: '#d1fae5', color: '#065f46', icon: '✔️', label: 'Completed' },
+      cancelled: { bg: '#fee2e2', color: '#991b1b', icon: '❌', label: 'Cancelled' }
+    };
+    const c = config[status] || { bg: '#f3f4f6', color: '#6b7280', icon: '📌', label: status };
+    return <Badge status={status}>{c.icon} {c.label}</Badge>;
+  };
+
+  const getRefundStatusBadge = (status) => {
+    const config = {
+      pending: { bg: '#fef3c7', color: '#92400e', text: 'Pending' },
+      approved: { bg: '#d1fae5', color: '#065f46', text: 'Approved' },
+      rejected: { bg: '#fee2e2', color: '#991b1b', text: 'Rejected' },
+      completed: { bg: '#d1fae5', color: '#065f46', text: 'Completed' }
+    };
+    const c = config[status] || { bg: '#f3f4f6', color: '#6b7280', text: status };
+    return <span style={{ backgroundColor: c.bg, color: c.color, padding: '4px 8px', borderRadius: '20px', fontSize: '11px' }}>{c.text}</span>;
+  };
+
+  const getStripeBadge = (status) => {
+    if (!status) return <span style={{ backgroundColor: '#f3f4f6', color: '#6b7280', padding: '4px 8px', borderRadius: '20px', fontSize: '11px' }}>Not Connected</span>;
+    if (status === 'active') return <span style={{ backgroundColor: '#d1fae5', color: '#065f46', padding: '4px 8px', borderRadius: '20px', fontSize: '11px' }}>Connected</span>;
+    if (status === 'pending') return <span style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '4px 8px', borderRadius: '20px', fontSize: '11px' }}>Pending</span>;
+    return <span style={{ backgroundColor: '#fee2e2', color: '#991b1b', padding: '4px 8px', borderRadius: '20px', fontSize: '11px' }}>Rejected</span>;
+  };
+
+  const filteredUsers = users.filter(u => {
+    const matchesRole = filterRole === 'all' || u.role === filterRole;
+    const matchesSearch = searchTerm === '' || u.email?.toLowerCase().includes(searchTerm.toLowerCase()) || u.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) || u.lastName?.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesRole && matchesSearch;
+  });
+
+  const filteredBookings = bookings.filter(b => {
+    const matchesStatus = filterStatus === 'all' || b.status === filterStatus;
+    const matchesSearch = searchTerm === '' || b.serviceName?.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
+
+  const maxRevenue = Math.max(...(paymentAnalytics.monthlyRevenue?.map(m => m.revenue) || [0]), 1);
+  const pendingRefunds = refunds.filter(r => r.status === 'pending').length;
+
+  const menuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: '📊', color: '#8b5cf6' },
+    { id: 'users', label: 'Users', icon: '👥', color: '#3b82f6' },
+    { id: 'providers', label: 'Providers', icon: '🔧', color: '#10b981' },
+    { id: 'drivers', label: 'Drivers', icon: '🚗', color: '#f59e0b' },
+    { id: 'bookings', label: 'Bookings', icon: '📅', color: '#ec4899' },
+    { id: 'services', label: 'Services', icon: '🛠️', color: '#14b8a6' },
+    { id: 'revenue', label: 'Revenue', icon: '💰', color: '#22c55e' },
+    { id: 'payouts', label: 'Payouts', icon: '💸', color: '#ef4444' },
+    { id: 'refunds', label: 'Refunds', icon: '🔄', color: '#f97316' },
+    { id: 'reviews', label: 'Reviews', icon: '⭐', color: '#f59e0b' },
+    { id: 'promos', label: 'Promo Codes', icon: '🎟️', color: '#06b6d4' },
+    { id: 'loyalty', label: 'Loyalty', icon: '💎', color: '#8b5cf6' }
+  ];
+
+  const styles = {
+    container: { display: 'flex', minHeight: '100vh', backgroundColor: darkMode ? '#0f172a' : '#f3f4f6' },
+    sidebar: {
+      width: sidebarCollapsed ? '80px' : '280px',
+      backgroundColor: darkMode ? '#1e293b' : '#ffffff',
+      transition: 'width 0.3s ease',
+      position: 'fixed', height: '100vh', overflow: 'hidden', zIndex: 100, boxShadow: '2px 0 8px rgba(0,0,0,0.05)'
+    },
+    sidebarHeader: {
+      padding: sidebarCollapsed ? '20px 0' : '24px 24px',
+      borderBottom: '1px solid ' + (darkMode ? '#334155' : '#e5e7eb'),
+      display: 'flex', alignItems: 'center', justifyContent: sidebarCollapsed ? 'center' : 'space-between'
+    },
+    logoIcon: { fontSize: '28px' },
+    logoText: { fontSize: '18px', fontWeight: 'bold', marginLeft: '10px', display: sidebarCollapsed ? 'none' : 'block', color: darkMode ? 'white' : '#1f2937' },
+    collapseBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', display: sidebarCollapsed ? 'none' : 'block', color: darkMode ? 'white' : '#6b7280' },
+    sidebarMenu: { flex: 1, padding: '20px 0' },
+    menuItem: {
+      display: 'flex', alignItems: 'center', gap: '12px',
+      padding: sidebarCollapsed ? '12px 0' : '12px 24px', margin: '4px 8px', borderRadius: '10px', cursor: 'pointer',
+      transition: 'all 0.2s ease', justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+      color: darkMode ? '#94a3b8' : '#6b7280'
+    },
+    menuItemActive: { backgroundColor: darkMode ? '#8b5cf620' : '#8b5cf610', color: '#8b5cf6' },
+    menuIcon: { fontSize: '20px' },
+    menuLabel: { fontSize: '14px', fontWeight: '500', display: sidebarCollapsed ? 'none' : 'block' },
+    mainContent: { flex: 1, marginLeft: sidebarCollapsed ? '80px' : '280px', transition: 'margin-left 0.3s ease' },
+    topHeader: {
+      backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '16px 30px',
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      borderBottom: '1px solid ' + (darkMode ? '#334155' : '#e5e7eb'), position: 'sticky', top: 0, zIndex: 99
+    },
+    headerTitle: { fontSize: '20px', fontWeight: 'bold', color: darkMode ? 'white' : '#1f2937' },
+    headerRight: { display: 'flex', alignItems: 'center', gap: '20px' },
+    notificationIcon: { position: 'relative', cursor: 'pointer', fontSize: '22px' },
+    notificationBadge: { position: 'absolute', top: '-8px', right: '-8px', backgroundColor: '#ef4444', color: 'white', fontSize: '10px', padding: '2px 6px', borderRadius: '10px' },
+    themeToggle: { background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '8px', borderRadius: '8px', backgroundColor: darkMode ? '#334155' : '#f3f4f6' },
+    wsBadge: { backgroundColor: isConnected ? '#10b981' : '#ef4444', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', color: 'white', display: 'flex', alignItems: 'center', gap: '5px' },
+    enableNotificationsBtn: { backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' },
+    userInfo: { display: 'flex', alignItems: 'center', gap: '15px' },
+    avatar: { width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white' },
+    userName: { fontWeight: '500', color: darkMode ? 'white' : '#374151' },
+    logoutBtn: { backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' },
+    contentArea: { padding: '24px 30px' },
+    statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '16px', marginBottom: '24px' },
+    statCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '16px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', transition: 'all 0.3s ease' },
+    statIcon: { fontSize: '32px' },
+    statInfo: { flex: 1 },
+    statValue: { fontSize: '24px', fontWeight: 'bold', color: '#8b5cf6' },
+    statLabel: { fontSize: '12px', color: '#6b7280' },
+    onlineCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '20px', borderRadius: '16px', marginBottom: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+    cardTitle: { fontSize: '14px', fontWeight: 'bold', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: darkMode ? 'white' : '#374151' },
+    onlineDot: { width: '8px', height: '8px', backgroundColor: '#10b981', borderRadius: '50%', display: 'inline-block' },
+    driverList: { display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '8px' },
+    driverItem: { display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: darkMode ? '#334155' : '#f3f4f6', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', color: darkMode ? 'white' : '#374151' },
+    activityCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '20px', borderRadius: '16px', marginBottom: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', maxHeight: '200px', overflow: 'auto' },
+    activityItem: { padding: '10px 0', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: darkMode ? '#cbd5e1' : '#374151' },
+    tabs: { display: 'flex', backgroundColor: darkMode ? '#1e293b' : '#ffffff', borderRadius: '12px', padding: '6px', marginBottom: '24px', gap: '4px', flexWrap: 'wrap' },
+    tab: { padding: '10px 20px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500', borderRadius: '8px', transition: 'all 0.2s ease', color: darkMode ? '#94a3b8' : '#6b7280' },
+    activeTab: { backgroundColor: '#8b5cf6', color: 'white' },
+    tableCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+    tableHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #e5e7eb', flexWrap: 'wrap', gap: '12px' },
+    tableTitle: { fontSize: '16px', fontWeight: 'bold', color: darkMode ? 'white' : '#374151' },
+    filters: { display: 'flex', gap: '10px', flexWrap: 'wrap' },
+    select: { padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: darkMode ? '#334155' : 'white', color: darkMode ? 'white' : '#374151' },
+    searchInput: { padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: '6px', width: '200px', backgroundColor: darkMode ? '#334155' : 'white', color: darkMode ? 'white' : '#374151' },
+    tableWrapper: { overflowX: 'auto' },
+    table: { width: '100%', borderCollapse: 'collapse' },
+    th: { textAlign: 'left', padding: '12px 16px', backgroundColor: darkMode ? '#334155' : '#f9fafb', fontSize: '12px', fontWeight: '600', color: darkMode ? 'white' : '#374151' },
+    td: { padding: '12px 16px', borderBottom: '1px solid #e5e7eb', fontSize: '13px', color: darkMode ? '#cbd5e1' : '#374151' },
+    actionGroup: { display: 'flex', gap: '6px', flexWrap: 'wrap' },
+    btnDanger: { backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' },
+    btnSuccess: { backgroundColor: '#10b981', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' },
+    btnPurple: { backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' },
+    btnPrimary: { backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' },
+    btnWarning: { backgroundColor: '#f59e0b', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' },
+    revenueGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' },
+    revenueCard: { backgroundColor: darkMode ? '#1e293b' : '#ffffff', padding: '20px', borderRadius: '16px', textAlign: 'center' },
+    revenueValue: { fontSize: '24px', fontWeight: 'bold', color: '#8b5cf6' },
+    chartContainer: { display: 'flex', justifyContent: 'space-around', alignItems: 'flex-end', height: '200px', padding: '20px', gap: '10px' },
+    chartBar: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', width: '60px' },
+    barFill: { width: '30px', backgroundColor: '#8b5cf6', borderRadius: '4px', transition: 'height 0.3s' },
+    barFillSmall: { width: '30px', backgroundColor: '#f59e0b', borderRadius: '4px', transition: 'height 0.3s', marginTop: '2px' },
+    pendingItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', borderBottom: '1px solid #e5e7eb', flexWrap: 'wrap', gap: '10px', color: darkMode ? '#cbd5e1' : '#374151' },
+    transactionItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', borderBottom: '1px solid #e5e7eb', flexWrap: 'wrap', gap: '10px', color: darkMode ? '#cbd5e1' : '#374151' },
+    invoiceBtn: { backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' },
+    emptyState: { textAlign: 'center', padding: '40px', color: '#6b7280' },
+    modal: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+    modalContent: { backgroundColor: 'white', padding: '24px', borderRadius: '16px', maxWidth: '500px', width: '90%', maxHeight: '80vh', overflow: 'auto' },
+    modalTextarea: { width: '100%', padding: '10px', marginBottom: '10px', border: '1px solid #d1d5db', borderRadius: '6px', minHeight: '80px' },
+    input: { width: '100%', padding: '10px', marginBottom: '10px', border: '1px solid #d1d5db', borderRadius: '6px' },
+    textarea: { width: '100%', padding: '10px', marginBottom: '10px', border: '1px solid #d1d5db', borderRadius: '6px', minHeight: '80px' },
+    modalActions: { display: 'flex', gap: '10px', marginTop: '20px' },
+    submitBtn: { backgroundColor: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer' },
+    cancelBtn: { backgroundColor: '#6b7280', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer' }
+  };
+
+  if (loading) {
+    return (
+      <div style={styles.container}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '48px', marginBottom: '20px' }}>👑</div>
+            <div style={{ fontSize: '18px', color: '#6b7280' }}>Loading admin dashboard...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.container}>
+      <ToastContainer position="top-right" />
+      
+      <div style={styles.sidebar}>
+        <div style={styles.sidebarHeader}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <span style={styles.logoIcon}>👑</span>
+            <span style={styles.logoText}>Car Care</span>
+          </div>
+          <button style={styles.collapseBtn} onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+            {sidebarCollapsed ? '→' : '←'}
+          </button>
+        </div>
+        <div style={styles.sidebarMenu}>
+          {menuItems.map(item => (
+            <div
+              key={item.id}
+              style={{
+                ...styles.menuItem,
+                ...(activeTab === item.id ? styles.menuItemActive : {}),
+                borderLeft: activeTab === item.id ? '3px solid ' + item.color : 'none'
+              }}
+              onClick={() => setActiveTab(item.id)}
+            >
+              <span style={styles.menuIcon}>{item.icon}</span>
+              <span style={styles.menuLabel}>{item.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={styles.mainContent}>
+        <div style={styles.topHeader}>
+          <div style={styles.headerTitle}>
+            {menuItems.find(m => m.id === activeTab)?.label || 'Dashboard'}
+          </div>
+          <div style={styles.headerRight}>
+            <div style={styles.wsBadge}>
+              <span style={{ width: '8px', height: '8px', backgroundColor: isConnected ? '#10b981' : '#ef4444', borderRadius: '50%', display: 'inline-block' }}></span>
+              {isConnected ? 'Live' : 'Offline'}
+            </div>
+            <button style={styles.enableNotificationsBtn} onClick={requestNotificationPermission}>Enable Notifications</button>
+            <div style={styles.notificationIcon} onClick={() => setShowNotifications(!showNotifications)}>
+              🔔{unreadCount > 0 && <span style={styles.notificationBadge}>{unreadCount}</span>}
+            </div>
+            <button style={styles.themeToggle} onClick={() => setDarkMode(!darkMode)}>
+              {darkMode ? '☀️' : '🌙'}
+            </button>
+            <div style={styles.userInfo}>
+              <div style={styles.avatar}>
+                {user?.firstName?.charAt(0) || 'A'}
+              </div>
+              <div>
+                <div style={styles.userName}>{user?.firstName} {user?.lastName}</div>
+                <div style={{ fontSize: '11px', color: '#8b5cf6' }}>Administrator</div>
+              </div>
+              <button style={styles.logoutBtn} onClick={onLogout}>Logout</button>
+            </div>
+          </div>
+        </div>
+
+        {showNotifications && (
+          <div style={{
+            position: 'absolute', top: '70px', right: '30px', width: '350px', backgroundColor: 'white',
+            borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 1000, maxHeight: '400px', overflow: 'auto'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', borderBottom: '1px solid #e5e7eb' }}>
+              <h3 style={{ margin: 0 }}>Notifications</h3>
+              <button onClick={() => { setNotifications([]); setUnreadCount(0); }} style={{ color: '#8b5cf6', background: 'none', border: 'none', cursor: 'pointer' }}>Clear all</button>
+            </div>
+            {notifications.length === 0 ? (
+              <div style={{ padding: '30px', textAlign: 'center', color: '#6b7280' }}>No notifications</div>
+            ) : (
+              notifications.map((notif, idx) => (
+                <div key={idx} style={{ display: 'flex', gap: '12px', padding: '12px 15px', borderBottom: '1px solid #e5e7eb' }}>
+                  <span style={{ fontSize: '20px' }}>🔔</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{notif.title || 'Update'}</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>{notif.message}</div>
+                    <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '4px' }}>{new Date(notif.timestamp).toLocaleTimeString()}</div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        <div style={styles.contentArea}>
+          <div style={styles.statsGrid}>
+            <div style={styles.statCard}><div style={styles.statIcon}>💰</div><div style={styles.statInfo}><div style={styles.statValue}>${stats.payments?.totalRevenue?.toLocaleString() || 0}</div><div style={styles.statLabel}>Total Revenue</div></div></div>
+            <div style={styles.statCard}><div style={styles.statIcon}>🏦</div><div style={styles.statInfo}><div style={styles.statValue}>${stats.payments?.totalCommission?.toLocaleString() || 0}</div><div style={styles.statLabel}>Platform Fee</div></div></div>
+            <div style={styles.statCard}><div style={styles.statIcon}>👥</div><div style={styles.statInfo}><div style={styles.statValue}>{stats.users?.total || 0}</div><div style={styles.statLabel}>Total Users</div></div></div>
+            <div style={styles.statCard}><div style={styles.statIcon}>📅</div><div style={styles.statInfo}><div style={styles.statValue}>{stats.bookings?.total || 0}</div><div style={styles.statLabel}>Bookings</div></div></div>
+            <div style={styles.statCard}><div style={styles.statIcon}>🔧</div><div style={styles.statInfo}><div style={styles.statValue}>{stats.users?.providers || 0}</div><div style={styles.statLabel}>Providers</div></div></div>
+            <div style={styles.statCard}><div style={styles.statIcon}>🚗</div><div style={styles.statInfo}><div style={styles.statValue}>{stats.users?.drivers || 0}</div><div style={styles.statLabel}>Drivers</div></div></div>
+          </div>
+
+          {activeTab === 'dashboard' && (
+            <>
+              <div style={styles.onlineCard}>
+                <div style={styles.cardTitle}>
+                  <span>REAL-TIME ONLINE USERS</span>
+                  <span style={styles.onlineDot}></span>
+                  <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#6b7280' }}>Live updates</span>
+                </div>
+                <div>
+                  <div><strong style={{ color: darkMode ? 'white' : '#374151' }}>Drivers Online:</strong> {onlineUsers.drivers.length}</div>
+                  <div style={styles.driverList}>
+                    {onlineUsers.drivers.length === 0 ? (
+                      <span style={{ fontSize: '12px', color: '#6b7280' }}>No drivers online</span>
+                    ) : (
+                      onlineUsers.drivers.map(driver => (
+                        <div key={driver.id} style={styles.driverItem}>
+                          <span style={{ width: '8px', height: '8px', backgroundColor: '#10b981', borderRadius: '50%', display: 'inline-block' }}></span>
+                          {driver.name || driver.driverName || 'Driver'}
+                          <span style={{ fontSize: '10px', color: '#6b7280' }}> Active</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div style={styles.activityCard}>
+                <div style={styles.cardTitle}>
+                  <span>LIVE ACTIVITY FEED</span>
+                  <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#6b7280' }}>Real-time platform events</span>
+                </div>
+                {liveActivity.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: '#6b7280', padding: '20px' }}>Waiting for activity...</div>
+                ) : (
+                  liveActivity.map(activity => (
+                    <div key={activity.id} style={styles.activityItem}>
+                      <span>{activity.type === 'driver_status' ? '🚗' : activity.type === 'booking_status' ? '📅' : '🔔'}</span>
+                      <span>{activity.message}</span>
+                      <span style={{ fontSize: '10px', color: '#9ca3af' }}>{new Date(activity.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div style={styles.revenueGrid}>
+                <div style={styles.revenueCard}><div style={{ fontSize: '24px', marginBottom: '8px' }}>📊</div><div>Weekly Bookings</div><div style={styles.revenueValue}>{stats.bookings?.weekly || 0}</div></div>
+                <div style={styles.revenueCard}><div style={{ fontSize: '24px', marginBottom: '8px' }}>✅</div><div>Completed</div><div style={styles.revenueValue}>{stats.bookings?.completed || 0}</div></div>
+                <div style={styles.revenueCard}><div style={{ fontSize: '24px', marginBottom: '8px' }}>⏳</div><div>Pending</div><div style={styles.revenueValue}>{stats.bookings?.pending || 0}</div></div>
+                <div style={styles.revenueCard}><div style={{ fontSize: '24px', marginBottom: '8px' }}>⭐</div><div>Avg Rating</div><div style={styles.revenueValue}>{stats.platform?.rating || 4.8}</div></div>
+              </div>
+
+              <div style={styles.tableCard}>
+                <div style={styles.tableHeader}><div style={styles.tableTitle}>Monthly Revenue Chart</div></div>
+                <div style={styles.chartContainer}>
+                  {paymentAnalytics.monthlyRevenue?.map(m => (
+                    <div key={m.month} style={styles.chartBar}>
+                      <div style={{ ...styles.barFill, height: `${(m.revenue / maxRevenue) * 150}px` }}></div>
+                      <div style={{ ...styles.barFillSmall, height: `${(m.commission / maxRevenue) * 150}px` }}></div>
+                      <span style={{ fontSize: '11px', color: darkMode ? 'white' : '#374151' }}>{m.month}</span>
+                      <small style={{ fontSize: '10px', color: '#6b7280' }}>${m.revenue?.toLocaleString() || 0}</small>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeTab === 'users' && (
+            <div style={styles.tableCard}>
+              <div style={styles.tableHeader}>
+                <div style={styles.tableTitle}>User Management</div>
+                <div style={styles.filters}>
+                  <select style={styles.select} value={filterRole} onChange={(e) => setFilterRole(e.target.value)}>
+                    <option value="all">All Roles</option>
+                    <option value="customer">Customers</option>
+                    <option value="provider">Providers</option>
+                    <option value="driver">Drivers</option>
+                  </select>
+                  <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={styles.searchInput} />
+                </div>
+              </div>
+              <div style={styles.tableWrapper}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr><th style={styles.th}>User</th><th style={styles.th}>Email</th><th style={styles.th}>Role</th><th style={styles.th}>Stripe</th><th style={styles.th}>Status</th><th style={styles.th}>Actions</th></tr>
+                  </thead>
+                  <tbody>
+                    {filteredUsers.map(u => (
+                      <tr key={u._id}>
+                        <td style={styles.td}><strong>{u.firstName} {u.lastName}</strong>{u.businessName && <div style={{ fontSize: '11px', color: '#6b7280' }}>{u.businessName}</div>}</td>
+                        <td style={styles.td}>{u.email}</td>
+                        <td style={styles.td}>{getRoleBadge(u.role)}</td>
+                        <td style={styles.td}>{(u.role === 'provider' || u.role === 'driver') ? getStripeBadge(u.stripeAccountStatus) : <span style={{ color: '#9ca3af' }}>—</span>}</td>
+                        <td style={styles.td}><span style={{ color: u.isActive ? '#10b981' : '#ef4444' }}>{u.isActive ? 'Active' : 'Suspended'}</span></td>
+                        <td style={styles.td}>
+                          <div style={styles.actionGroup}>
+                            {u.isActive ? <button style={styles.btnDanger} onClick={() => updateUserStatus(u._id, false)}>Suspend</button> : <button style={styles.btnSuccess} onClick={() => updateUserStatus(u._id, true)}>Activate</button>}
+                            {(u.role === 'provider' || u.role === 'driver') && !u.isVerified && <button style={styles.btnPurple} onClick={() => verifyUser(u._id, u.role)}>Verify</button>}
+                            <button style={styles.btnDanger} onClick={() => deleteUser(u._id, `${u.firstName} ${u.lastName}`)}>Delete</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'providers' && (
+            <div style={styles.tableCard}>
+              <div style={styles.tableHeader}><div style={styles.tableTitle}>Provider Management</div></div>
+              <div style={styles.tableWrapper}>
+                <table style={styles.table}>
+                  <thead><tr><th style={styles.th}>Business</th><th style={styles.th}>Owner</th><th style={styles.th}>Email</th><th style={styles.th}>Stripe</th><th style={styles.th}>Status</th><th style={styles.th}>Actions</th></tr></thead>
+                  <tbody>
+                    {users.filter(u => u.role === 'provider').map(u => (
+                      <tr key={u._id}>
+                        <td style={styles.td}><strong>{u.businessName || u.firstName}</strong></td>
+                        <td style={styles.td}>{u.firstName} {u.lastName}</td>
+                        <td style={styles.td}>{u.email}</td>
+                        <td style={styles.td}>{getStripeBadge(u.stripeAccountStatus)}</td>
+                        <td style={styles.td}><span style={{ color: u.isVerified ? '#10b981' : '#f59e0b' }}>{u.isVerified ? 'Verified' : 'Pending'}</span></td>
+                        <td style={styles.td}>
+                          <div style={styles.actionGroup}>
+                            {!u.isVerified && <button style={styles.btnPurple} onClick={() => verifyUser(u._id, 'Provider')}>Verify</button>}
+                            {u.isActive ? <button style={styles.btnDanger} onClick={() => updateUserStatus(u._id, false)}>Suspend</button> : <button style={styles.btnSuccess} onClick={() => updateUserStatus(u._id, true)}>Activate</button>}
+                            <button style={styles.btnDanger} onClick={() => deleteUser(u._id, u.businessName || u.firstName)}>Delete</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'drivers' && (
+            <div style={styles.tableCard}>
+              <div style={styles.tableHeader}><div style={styles.tableTitle}>Driver Management</div></div>
+              <div style={styles.tableWrapper}>
+                <table style={styles.table}>
+                  <thead><tr><th style={styles.th}>Name</th><th style={styles.th}>Email</th><th style={styles.th}>Vehicle</th><th style={styles.th}>Stripe</th><th style={styles.th}>Status</th><th style={styles.th}>Online</th><th style={styles.th}>Actions</th></tr></thead>
+                  <tbody>
+                    {users.filter(u => u.role === 'driver').map(u => {
+                      const isOnlineNow = onlineUsers.drivers.some(d => d.id === u._id || d.driverId === u._id);
+                      return (
+                        <tr key={u._id}>
+                          <td style={styles.td}>{u.firstName} {u.lastName}</td>
+                          <td style={styles.td}>{u.email}</td>
+                          <td style={styles.td}>{u.vehicleModel || 'N/A'}</td>
+                          <td style={styles.td}>{getStripeBadge(u.stripeAccountStatus)}</td>
+                          <td style={styles.td}><span style={{ color: u.isVerified ? '#10b981' : '#f59e0b' }}>{u.isVerified ? 'Verified' : 'Pending'}</span></td>
+                          <td style={styles.td}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <span style={{ width: '8px', height: '8px', backgroundColor: isOnlineNow ? '#10b981' : '#6b7280', borderRadius: '50%', display: 'inline-block' }}></span>
+                              {isOnlineNow ? 'Online' : 'Offline'}
+                            </span>
+                          </td>
+                          <td style={styles.td}>
+                            <div style={styles.actionGroup}>
+                              {!u.isVerified && <button style={styles.btnPurple} onClick={() => verifyUser(u._id, 'Driver')}>Verify</button>}
+                              {u.isActive ? <button style={styles.btnDanger} onClick={() => updateUserStatus(u._id, false)}>Suspend</button> : <button style={styles.btnSuccess} onClick={() => updateUserStatus(u._id, true)}>Activate</button>}
+                              <button style={styles.btnDanger} onClick={() => deleteUser(u._id, `${u.firstName} ${u.lastName}`)}>Delete</button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'bookings' && (
+            <div style={styles.tableCard}>
+              <div style={styles.tableHeader}>
+                <div style={styles.tableTitle}>All Bookings</div>
+                <div style={styles.filters}>
+                  <select style={styles.select} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+                    <option value="all">All</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option>
+                    <option value="completed">Completed</option><option value="cancelled">Cancelled</option>
+                  </select>
+                  <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={styles.searchInput} />
+                </div>
+              </div>
+              <div style={styles.tableWrapper}>
+                <table style={styles.table}>
+                  <thead><tr><th style={styles.th}>Service</th><th style={styles.th}>Customer</th><th style={styles.th}>Provider</th><th style={styles.th}>Date</th><th style={styles.th}>Amount</th><th style={styles.th}>Status</th></tr></thead>
+                  <tbody>
+                    {filteredBookings.map(b => (
+                      <tr key={b._id}>
+                        <td style={styles.td}>{b.serviceName}</td>
+                        <td style={styles.td}>{b.customerId?.firstName} {b.customerId?.lastName}</td>
+                        <td style={styles.td}>{b.providerId?.businessName || b.providerId?.firstName}</td>
+                        <td style={styles.td}>{new Date(b.bookingDate).toLocaleDateString()}</td>
+                        <td style={styles.td}>${b.totalAmount}</td>
+                        <td style={styles.td}>{getStatusBadge(b.status)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'services' && (
+            <div style={styles.tableCard}>
+              <div style={styles.tableHeader}><div style={styles.tableTitle}>All Services</div></div>
+              <div style={styles.tableWrapper}>
+                <table style={styles.table}>
+                  <thead><tr><th style={styles.th}>Name</th><th style={styles.th}>Provider</th><th style={styles.th}>Price</th><th style={styles.th}>Status</th><th style={styles.th}>Actions</th></tr></thead>
+                  <tbody>
+                    {services.map(s => (
+                      <tr key={s._id}>
+                        <td style={styles.td}>{s.name}</td>
+                        <td style={styles.td}>{s.providerId?.businessName || s.providerId?.firstName}</td>
+                        <td style={styles.td}>${s.price}</td>
+                        <td style={styles.td}><span style={{ color: s.isActive ? '#10b981' : '#ef4444' }}>{s.isActive ? 'Active' : 'Hidden'}</span></td>
+                        <td style={styles.td}><button style={s.isActive ? styles.btnDanger : styles.btnSuccess} onClick={() => toggleServiceStatus(s._id, s.isActive)}>{s.isActive ? 'Hide' : 'Show'}</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'revenue' && (
+            <div>
+              <div style={styles.revenueGrid}>
+                <div style={styles.revenueCard}><div>Total Revenue</div><div style={styles.revenueValue}>${stats.payments?.totalRevenue?.toLocaleString() || 0}</div></div>
+                <div style={styles.revenueCard}><div>Platform Commission</div><div style={styles.revenueValue}>${stats.payments?.totalCommission?.toLocaleString() || 0}</div></div>
+                <div style={styles.revenueCard}><div>Provider Payouts</div><div style={styles.revenueValue}>${stats.payments?.totalProviderPayouts?.toLocaleString() || 0}</div></div>
+                <div style={styles.revenueCard}><div>Driver Payouts</div><div style={styles.revenueValue}>${stats.payments?.totalDriverPayouts?.toLocaleString() || 0}</div></div>
+              </div>
+              <div style={styles.tableCard}>
+                <div style={styles.tableHeader}><div style={styles.tableTitle}>Monthly Revenue Breakdown</div></div>
+                <div style={styles.chartContainer}>
+                  {paymentAnalytics.monthlyRevenue?.map(m => (
+                    <div key={m.month} style={styles.chartBar}>
+                      <div style={{ ...styles.barFill, height: `${(m.revenue / maxRevenue) * 150}px`, backgroundColor: '#8b5cf6' }}></div>
+                      <div style={{ ...styles.barFillSmall, height: `${(m.commission / maxRevenue) * 150}px`, backgroundColor: '#f59e0b' }}></div>
+                      <span style={{ fontSize: '11px', color: darkMode ? 'white' : '#374151' }}>{m.month}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={styles.tableCard}>
+                <div style={styles.tableHeader}><div style={styles.tableTitle}>Recent Transactions</div></div>
+                <div style={styles.tableWrapper}>
+                  {paymentAnalytics.recentTransactions?.map(t => (
+                    <div key={t._id} style={styles.transactionItem}>
+                      <div><strong>{t.bookingId?.serviceName}</strong><div style={{ fontSize: '11px', color: '#6b7280' }}>{t.customerId?.firstName} {t.customerId?.lastName}</div></div>
+                      <div>${t.amount}</div>
+                      <div>{t.paymentMethod}</div>
+                      <div>{new Date(t.paidAt).toLocaleDateString()}</div>
+                      <button onClick={() => downloadInvoice(t._id)} style={styles.invoiceBtn}>Invoice</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'payouts' && (
+            <div>
+              <div style={styles.tableCard}>
+                <div style={styles.tableHeader}><div style={styles.tableTitle}>Provider Payouts</div></div>
+                {pendingPayouts.providerPayouts?.map(p => (
+                  <div key={p.id} style={styles.pendingItem}>
+                    <span><strong>{p.name}</strong> - {p.count} bookings</span>
+                    <span style={{ fontWeight: 'bold', color: '#10b981' }}>${p.amount?.toLocaleString() || 0}</span>
+                    <button style={styles.btnSuccess} onClick={() => processPayout(p.id, 'provider')}>Process Payment</button>
+                  </div>
+                ))}
+                {pendingPayouts.providerPayouts?.length === 0 && <div style={styles.emptyState}>No pending provider payouts</div>}
+              </div>
+              <div style={styles.tableCard}>
+                <div style={styles.tableHeader}><div style={styles.tableTitle}>Driver Payouts</div></div>
+                {pendingPayouts.driverPayouts?.map(d => (
+                  <div key={d.id} style={styles.pendingItem}>
+                    <span><strong>{d.name}</strong> - {d.count} deliveries</span>
+                    <span style={{ fontWeight: 'bold', color: '#10b981' }}>${d.amount?.toLocaleString() || 0}</span>
+                    <button style={styles.btnSuccess} onClick={() => processPayout(d.id, 'driver')}>Process Payment</button>
+                  </div>
+                ))}
+                {pendingPayouts.driverPayouts?.length === 0 && <div style={styles.emptyState}>No pending driver payouts</div>}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'refunds' && (
+            <div style={styles.tableCard}>
+              <div style={styles.tableHeader}>
+                <div style={styles.tableTitle}>Refund Requests {pendingRefunds > 0 && <span style={{ backgroundColor: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '20px', fontSize: '11px', marginLeft: '8px' }}>{pendingRefunds} pending</span>}</div>
+              </div>
+              <div style={styles.tableWrapper}>
+                <table style={styles.table}>
+                  <thead><tr><th style={styles.th}>Customer</th><th style={styles.th}>Service</th><th style={styles.th}>Amount</th><th style={styles.th}>Reason</th><th style={styles.th}>Status</th><th style={styles.th}>Requested</th><th style={styles.th}>Actions</th></tr></thead>
+                  <tbody>
+                    {refunds.map(r => (
+                      <tr key={r._id}>
+                        <td style={styles.td}><strong>{r.customerId?.firstName} {r.customerId?.lastName}</strong><br/><span style={{ fontSize: '11px', color: '#6b7280' }}>{r.customerId?.email}</span></td>
+                        <td style={styles.td}>{r.bookingId?.serviceName}</td>
+                        <td style={styles.td}>${r.amount}</td>
+                        <td style={styles.td}>{r.reason?.substring(0, 50)}...</td>
+                        <td style={styles.td}>{getRefundStatusBadge(r.status)}</td>
+                        <td style={styles.td}>{new Date(r.requestedAt).toLocaleDateString()}</td>
+                        <td style={styles.td}>{r.status === 'pending' && <button style={styles.btnPurple} onClick={() => setSelectedRefund(r)}>Review</button>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'reviews' && (
+            <div style={styles.tableCard}>
+              <div style={styles.tableHeader}>
+                <div style={styles.tableTitle}>Customer Reviews</div>
+                <button style={styles.btnPrimary} onClick={fetchAllReviews}>Refresh</button>
+              </div>
+              <div style={styles.tableWrapper}>
+                {reviewsLoading ? (
+                  <div style={styles.emptyState}>Loading reviews...</div>
+                ) : allReviews.length === 0 ? (
+                  <div style={styles.emptyState}>No reviews yet.</div>
+                ) : (
+                  <table style={styles.table}>
+                    <thead><tr><th style={styles.th}>Customer</th><th style={styles.th}>Provider</th><th style={styles.th}>Rating</th><th style={styles.th}>Review</th><th style={styles.th}>Date</th><th style={styles.th}>Actions</th></tr></thead>
+                    <tbody>
+                      {allReviews.map(review => (
+                        <tr key={review._id}>
+                          <td style={styles.td}>{review.customerId?.firstName} {review.customerId?.lastName}</td>
+                          <td style={styles.td}>{review.providerId?.businessName || review.providerId?.firstName}</td>
+                          <td style={styles.td}>{review.providerRating}/5</td>
+                          <td style={styles.td}>{review.providerReview?.substring(0, 80)}...</td>
+                          <td style={styles.td}>{new Date(review.createdAt).toLocaleDateString()}</td>
+                          <td style={styles.td}><button onClick={() => hideReview(review._id)} style={styles.btnDanger}>Hide</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'promos' && (
+            <div style={styles.tableCard}>
+              <div style={styles.tableHeader}>
+                <div style={styles.tableTitle}>Promo Codes</div>
+                <button style={styles.btnSuccess} onClick={() => { setNewPromoCode({ code: '', description: '', discountType: 'percentage', discountValue: '', minPurchase: '', usageLimit: '', validUntil: '' }); setShowPromoModal(true); }}>+ Create Promo Code</button>
+              </div>
+              <div style={styles.tableWrapper}>
+                {promoCodes.length === 0 ? (
+                  <div style={styles.emptyState}>No promo codes created yet.</div>
+                ) : (
+                  <table style={styles.table}>
+                    <thead>
+                      <tr><th style={styles.th}>Code</th><th style={styles.th}>Description</th><th style={styles.th}>Discount</th><th style={styles.th}>Used/Limit</th><th style={styles.th}>Valid Until</th><th style={styles.th}>Status</th><th style={styles.th}>Actions</th></tr>
+                    </thead>
+                    <tbody>
+                      {promoCodes.map(promo => (
+                        <tr key={promo._id}>
+                          <td style={styles.td}><strong>{promo.code}</strong></td>
+                          <td style={styles.td}>{promo.description}</td>
+                          <td style={styles.td}>{promo.discountType === 'percentage' ? `${promo.discountValue}%` : `$${promo.discountValue}`}</td>
+                          <td style={styles.td}>{promo.usedCount} / {promo.usageLimit}</td>
+                          <td style={styles.td}>{promo.validUntil ? new Date(promo.validUntil).toLocaleDateString() : 'Never'}</td>
+                          <td style={styles.td}><span style={{ color: promo.isActive ? '#10b981' : '#ef4444' }}>{promo.isActive ? 'Active' : 'Inactive'}</span></td>
+                          <td style={styles.td}><button onClick={() => deletePromoCode(promo._id, promo.code)} style={styles.btnDanger}>Delete</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'loyalty' && (
+            <div>
+              <div style={styles.revenueGrid}>
+                <div style={styles.revenueCard}><div style={{ fontSize: '24px' }}>💎</div><div>Total Points Issued</div><div style={styles.revenueValue}>{loyaltyStats.totalPoints.toLocaleString()}</div></div>
+                <div style={styles.revenueCard}><div style={{ fontSize: '24px' }}>👥</div><div>Active Loyalty Users</div><div style={styles.revenueValue}>{loyaltyStats.totalUsers}</div></div>
+                <div style={styles.revenueCard}><div style={{ fontSize: '24px' }}>📊</div><div>Average Points per User</div><div style={styles.revenueValue}>{loyaltyStats.averagePoints.toLocaleString()}</div></div>
+              </div>
+              <div style={styles.tableCard}>
+                <div style={styles.tableHeader}><div style={styles.tableTitle}>Loyalty Leaderboard</div></div>
+                <div style={styles.tableWrapper}>
+                  {loyaltyLeaderboard.length === 0 ? (
+                    <div style={styles.emptyState}>No loyalty data yet.</div>
+                  ) : (
+                    <table style={styles.table}>
+                      <thead>
+                        <tr><th style={styles.th}>Rank</th><th style={styles.th}>User</th><th style={styles.th}>Tier</th><th style={styles.th}>Points</th><th style={styles.th}>Lifetime Points</th></tr>
+                      </thead>
+                      <tbody>
+                        {loyaltyLeaderboard.map((user, index) => (
+                          <tr key={user.userId?._id || index}>
+                            <td style={styles.td}>{index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}`}</td>
+                            <td style={styles.td}>{user.userId?.firstName} {user.userId?.lastName}{user.userId?.businessName && <div style={{ fontSize: '11px', color: '#6b7280' }}>{user.userId.businessName}</div>}</td>
+                            <td style={styles.td}><span style={{ backgroundColor: user.tier === 'Platinum' ? '#e0e7ff' : user.tier === 'Gold' ? '#fef3c7' : '#f3e8ff', color: user.tier === 'Platinum' ? '#4338ca' : user.tier === 'Gold' ? '#92400e' : '#7c3aed', padding: '4px 8px', borderRadius: '20px', fontSize: '11px' }}>{user.tier || 'Bronze'}</span></td>
+                            <td style={styles.td}>{user.points?.toLocaleString() || 0}</td>
+                            <td style={styles.td}>{user.lifetimePoints?.toLocaleString() || 0}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {selectedRefund && (
+        <div style={styles.modal}>
+          <div style={styles.modalContent}>
+            <h2 style={{ marginBottom: '20px' }}>Review Refund Request</h2>
+            <div style={{ marginBottom: '20px' }}>
+              <p><strong>Customer:</strong> {selectedRefund.customerId?.firstName} {selectedRefund.customerId?.lastName}</p>
+              <p><strong>Email:</strong> {selectedRefund.customerId?.email}</p>
+              <p><strong>Service:</strong> {selectedRefund.bookingId?.serviceName}</p>
+              <p><strong>Amount:</strong> ${selectedRefund.amount}</p>
+              <p><strong>Reason:</strong> {selectedRefund.reason}</p>
+            </div>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Admin Notes (Optional)</label>
+            <textarea style={styles.modalTextarea} placeholder="Add internal notes..." value={adminNotes} onChange={(e) => setAdminNotes(e.target.value)} rows="3" />
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+              <button style={{ backgroundColor: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer' }} onClick={() => approveRefund(selectedRefund._id)}>Approve Refund</button>
+              <button style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer' }} onClick={() => { setRejectionReason(''); }}>Reject</button>
+              <button style={{ backgroundColor: '#6b7280', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer' }} onClick={() => { setSelectedRefund(null); setAdminNotes(''); setRejectionReason(''); }}>Cancel</button>
+            </div>
+            {rejectionReason && (
+              <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #e5e7eb' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Rejection Reason *</label>
+                <textarea style={styles.modalTextarea} placeholder="Why is this refund being rejected?" value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} rows="2" />
+                <button style={{ marginTop: '10px', backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }} onClick={() => rejectRefund(selectedRefund._id)}>Confirm Rejection</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showPromoModal && (
+        <div style={styles.modal}>
+          <div style={styles.modalContent}>
+            <h2 style={{ marginBottom: '20px' }}>Create Promo Code</h2>
+            <form onSubmit={createPromoCode}>
+              <input style={styles.input} type="text" placeholder="Code (e.g., WELCOME20)" value={newPromoCode.code} onChange={(e) => setNewPromoCode({...newPromoCode, code: e.target.value.toUpperCase()})} required />
+              <input style={styles.input} type="text" placeholder="Description" value={newPromoCode.description} onChange={(e) => setNewPromoCode({...newPromoCode, description: e.target.value})} required />
+              <select style={styles.input} value={newPromoCode.discountType} onChange={(e) => setNewPromoCode({...newPromoCode, discountType: e.target.value})}>
+                <option value="percentage">Percentage (%)</option>
+                <option value="fixed">Fixed Amount ($)</option>
+              </select>
+              <input style={styles.input} type="number" placeholder="Discount Value" value={newPromoCode.discountValue} onChange={(e) => setNewPromoCode({...newPromoCode, discountValue: e.target.value})} required />
+              <input style={styles.input} type="number" placeholder="Minimum Purchase (optional)" value={newPromoCode.minPurchase} onChange={(e) => setNewPromoCode({...newPromoCode, minPurchase: e.target.value})} />
+              <input style={styles.input} type="number" placeholder="Usage Limit" value={newPromoCode.usageLimit} onChange={(e) => setNewPromoCode({...newPromoCode, usageLimit: e.target.value})} />
+              <input style={styles.input} type="date" placeholder="Valid Until" value={newPromoCode.validUntil} onChange={(e) => setNewPromoCode({...newPromoCode, validUntil: e.target.value})} />
+              <div style={styles.modalActions}>
+                <button type="submit" style={styles.submitBtn}>Create</button>
+                <button type="button" style={styles.cancelBtn} onClick={() => setShowPromoModal(false)}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default AdminDashboard;

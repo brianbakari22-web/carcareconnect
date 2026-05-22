@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -34,6 +35,7 @@ mongoose.connect('mongodb://localhost:27017/carcareconnect')
   .catch(err => console.error('MongoDB error:', err));
 
 // Routes
+const whatsappRoutes = require('./routes/whatsappRoutes');
 app.use('/api/auth', authRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/driver', driverRoutes);

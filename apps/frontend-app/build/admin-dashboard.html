@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Car Care Connect</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; }
+        .header { background: white; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; }
+        .logo { font-size: 20px; font-weight: bold; }
+        .logo span { color: #8b5cf6; }
+        .logout-btn { background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
+        .content { padding: 24px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; text-align: center; }
+        .stat-value { font-size: 28px; font-weight: bold; color: #8b5cf6; }
+        .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .card h2 { margin-bottom: 16px; font-size: 18px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background: #f9fafb; }
+        .loading { text-align: center; padding: 40px; color: #6b7280; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">🚗💨 <span>Car Care Connect</span> | Admin Panel</div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+    <div class="content" id="content">
+        <div class="loading">Loading admin dashboard...</div>
+    </div>
+    <script>
+        const token = localStorage.getItem('adminToken');
+        if (!token) { window.location.href = '/admin-login.html'; }
+
+        async function fetchStats() {
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/stats', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const stats = data.stats;
+                    document.getElementById('content').innerHTML = `
+                        <div class="stats-grid">
+                            <div class="stat-card"><div class="stat-value">${stats.users?.total || 0}</div><div>Total Users</div></div>
+                            <div class="stat-card"><div class="stat-value">${stats.users?.customers || 0}</div><div>Customers</div></div>
+                            <div class="stat-card"><div class="stat-value">${stats.users?.providers || 0}</div><div>Providers</div></div>
+                            <div class="stat-card"><div class="stat-value">${stats.users?.drivers || 0}</div><div>Drivers</div></div>
+                        </div>
+                        <div class="card"><h2>Welcome, Founder</h2><p>Admin dashboard is loading. Full features coming soon.</p></div>
+                    `;
+                }
+            } catch(err) { console.error(err); }
+        }
+
+        function logout() {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUser');
+            window.location.href = '/admin-login.html';
+        }
+
+        fetchStats();
+    </script>
+</body>
+</html>

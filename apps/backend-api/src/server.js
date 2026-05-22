@@ -1,3 +1,4 @@
+const connectDB = require('./config/db');
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -30,9 +31,7 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB connection
-mongoose.connect('mongodb://localhost:27017/carcareconnect')
-  .then(() => console.log('✅ MongoDB connected to Car Care Connect'))
-  .catch(err => console.error('MongoDB error:', err));
+// Database connection handled in config/db.js
 
 // Routes
 const whatsappRoutes = require('./routes/whatsappRoutes');
@@ -80,7 +79,7 @@ try {
 
 // ============ START SERVER WITH WEBSOCKETS ============
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
+connectDB();`n  server.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════════════╗
 ║     🚗💨 CAR CARE CONNECT BACKEND RUNNING (WITH WEBSOCKETS)      ║

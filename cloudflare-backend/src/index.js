@@ -1,4 +1,4 @@
-// src/index.js — Complete Car Care Connect API (D1 + KV)
+// src/index.js — COMPLETE Car Care Connect API (D1 + KV)
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
@@ -29,7 +29,6 @@ async function verifyToken(request, env) {
 async function handleAuth(request, env) {
   const url = new URL(request.url);
 
-  // GET /api/auth/me
   if (url.pathname === '/api/auth/me' && request.method === 'GET') {
     try {
       const user = await verifyToken(request, env);
@@ -40,57 +39,122 @@ async function handleAuth(request, env) {
     }
   }
 
-  // POST /api/auth/register
   if (url.pathname === '/api/auth/register' && request.method === 'POST') {
-    const { firstName, lastName, email, password, phone, role, businessName } = await request.json();
-    const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
-    if (existing) return json({ success: false, message: 'User already exists' }, 400);
+    try {
+      const { firstName, lastName, email, password, phone, role, businessName } = await request.json();
+      const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
+      if (existing) return json({ success: false, message: 'User already exists' }, 400);
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const result = await env.DB.prepare(
-      'INSERT INTO users (first_name, last_name, email, password, phone, role, business_name) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).bind(firstName, lastName, email, hashedPassword, phone || null, role || 'customer', businessName || null).run();
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const result = await env.DB.prepare(
+        'INSERT INTO users (first_name, last_name, email, password, phone, role, business_name) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).bind(firstName, lastName, email, hashedPassword, phone || null, role || 'customer', businessName || null).run();
 
-    const token = jwt.sign({ id: result.meta.last_row_id, email, role: role || 'customer' }, env.JWT_SECRET, { expiresIn: '7d' });
-    return json({ success: true, token, user: { id: result.meta.last_row_id, firstName, lastName, email, role: role || 'customer' } });
+      const token = jwt.sign({ id: result.meta.last_row_id, email, role: role || 'customer' }, env.JWT_SECRET, { expiresIn: '7d' });
+      return json({ success: true, token, user: { id: result.meta.last_row_id, firstName, lastName, email, role: role || 'customer' } });
+    } catch (err) {
+      return json({ success: false, error: err.message }, 500);
+    }
   }
 
-  // POST /api/auth/login
   if (url.pathname === '/api/auth/login' && request.method === 'POST') {
-    const { email, password, role } = await request.json();
-    const user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
-    if (!user || !await bcrypt.compare(password, user.password)) return json({ success: false, message: 'Invalid credentials' }, 401);
-    if (role && user.role !== role) return json({ success: false, message: 'Invalid role' }, 403);
+    try {
+      const { email, password, role } = await request.json();
+      const user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
+      if (!user || !await bcrypt.compare(password, user.password)) return json({ success: false, message: 'Invalid credentials' }, 401);
+      if (role && user.role !== role) return json({ success: false, message: 'Invalid role' }, 403);
 
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, env.JWT_SECRET, { expiresIn: '7d' });
-    const { password: _, ...safeUser } = user;
-    return json({ success: true, token, user: safeUser });
+      const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, env.JWT_SECRET, { expiresIn: '7d' });
+      const { password: _, ...safeUser } = user;
+      return json({ success: true, token, user: safeUser });
+    } catch (err) {
+      return json({ success: false, error: err.message }, 500);
+    }
   }
 
   return json({ success: false, error: 'Auth route not found' }, 404);
 }
 
-// ─── CUSTOMER VEHICLES ───
+// ─── DISCOVERY ROUTES ───
+async function handleDiscovery(request, env) {
+  const url = new URL(request.url);
+
+  if (url.pathname === '/api/discovery/providers' && request.method === 'GET') {
+    try {
+      const providers = await env.DB.prepare(`
+        SELECT id, business_name, phone, email, is_verified, address
+        FROM users 
+        WHERE role = 'provider' AND is_active = 1
+      `).all();
+      return json({ success: true, providers: providers.results });
+    } catch (err) {
+      return json({ success: false, error: err.message }, 500);
+    }
+  }
+
+  if (url.pathname === '/api/discovery/drivers' && request.method === 'GET') {
+    try {
+      const drivers = await env.DB.prepare(`
+        SELECT id, first_name, last_name, phone, email
+        FROM users 
+        WHERE role = 'driver' AND is_active = 1
+      `).all();
+      return json({ success: true, drivers: drivers.results });
+    } catch (err) {
+      return json({ success: false, error: err.message }, 500);
+    }
+  }
+
+  if (url.pathname === '/api/discovery/services' && request.method === 'GET') {
+    try {
+      const services = await env.DB.prepare(`
+        SELECT s.*, u.business_name as provider_name 
+        FROM services s 
+        JOIN users u ON s.provider_id = u.id 
+        WHERE s.is_active = 1
+      `).all();
+      return json({ success: true, services: services.results });
+    } catch (err) {
+      return json({ success: false, error: err.message }, 500);
+    }
+  }
+
+  if (url.pathname === '/api/discovery/stats' && request.method === 'GET') {
+    try {
+      const providers = await env.DB.prepare('SELECT COUNT(*) as count FROM users WHERE role = "provider" AND is_active = 1').first();
+      const drivers = await env.DB.prepare('SELECT COUNT(*) as count FROM users WHERE role = "driver" AND is_active = 1').first();
+      const services = await env.DB.prepare('SELECT COUNT(*) as count FROM services WHERE is_active = 1').first();
+      return json({ success: true, stats: { 
+        providers: providers?.count || 0, 
+        drivers: drivers?.count || 0, 
+        services: services?.count || 0 
+      } });
+    } catch (err) {
+      return json({ success: false, error: err.message }, 500);
+    }
+  }
+
+  return json({ success: false, error: 'Discovery route not found' }, 404);
+}
+
+// ─── VEHICLES ROUTES ───
 async function handleVehicles(request, env) {
   const url = new URL(request.url);
   const user = await verifyToken(request, env);
 
-  // GET /api/services/customer/vehicles
   if (url.pathname === '/api/services/customer/vehicles' && request.method === 'GET') {
     const vehicles = await env.DB.prepare('SELECT * FROM vehicles WHERE customer_id = ?').bind(user.id).all();
     return json({ success: true, vehicles: vehicles.results });
   }
 
-  // POST /api/services/customer/vehicles
   if (url.pathname === '/api/services/customer/vehicles' && request.method === 'POST') {
-    const { make, model, year, licensePlate, color } = await request.json();
+    const { make, model, year, license_plate, color } = await request.json();
     const result = await env.DB.prepare(
       'INSERT INTO vehicles (customer_id, make, model, year, license_plate, color) VALUES (?, ?, ?, ?, ?, ?)'
-    ).bind(user.id, make, model, year, licensePlate, color).run();
+    ).bind(user.id, make, model, year, license_plate, color).run();
     return json({ success: true, vehicleId: result.meta.last_row_id });
   }
 
-  // DELETE /api/services/customer/vehicles/:id
   if (url.pathname.match(/^\/api\/services\/customer\/vehicles\/\d+$/) && request.method === 'DELETE') {
     const id = url.pathname.split('/').pop();
     await env.DB.prepare('DELETE FROM vehicles WHERE id = ? AND customer_id = ?').bind(id, user.id).run();
@@ -100,45 +164,11 @@ async function handleVehicles(request, env) {
   return json({ success: false, error: 'Vehicle route not found' }, 404);
 }
 
-// ─── CUSTOMER BOOKINGS ───
-async function handleCustomerBookings(request, env) {
-  const url = new URL(request.url);
-  const user = await verifyToken(request, env);
-
-  // GET /api/services/customer/bookings
-  if (url.pathname === '/api/services/customer/bookings' && request.method === 'GET') {
-    const bookings = await env.DB.prepare(`
-      SELECT b.*, s.name as service_name, p.business_name as provider_name 
-      FROM bookings b 
-      JOIN services s ON b.service_id = s.id 
-      JOIN users p ON b.provider_id = p.id 
-      WHERE b.customer_id = ? 
-      ORDER BY b.created_at DESC
-    `).bind(user.id).all();
-    return json({ success: true, bookings: bookings.results });
-  }
-
-  // POST /api/services/customer/bookings
-  if (url.pathname === '/api/services/customer/bookings' && request.method === 'POST') {
-    const { serviceId, vehicleId, bookingDate, bookingTime, isConcierge, pickupAddress, notes } = await request.json();
-    const service = await env.DB.prepare('SELECT * FROM services WHERE id = ?').bind(serviceId).first();
-    
-    const result = await env.DB.prepare(
-      'INSERT INTO bookings (customer_id, provider_id, service_id, service_name, booking_date, booking_time, total_amount, is_concierge, pickup_address, notes, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).bind(user.id, service.provider_id, serviceId, service.name, bookingDate, bookingTime, service.base_price, isConcierge ? 1 : 0, pickupAddress, notes, 'pending').run();
-    
-    return json({ success: true, booking: { id: result.meta.last_row_id, totalAmount: service.base_price } });
-  }
-
-  return json({ success: false, error: 'Customer booking route not found' }, 404);
-}
-
-// ─── LOYALTY ───
+// ─── LOYALTY ROUTES ───
 async function handleLoyalty(request, env) {
   const url = new URL(request.url);
   const user = await verifyToken(request, env);
 
-  // GET /api/loyalty/my-points
   if (url.pathname === '/api/loyalty/my-points' && request.method === 'GET') {
     let loyalty = await env.DB.prepare('SELECT * FROM loyalty_points WHERE user_id = ?').bind(user.id).first();
     if (!loyalty) {
@@ -151,12 +181,11 @@ async function handleLoyalty(request, env) {
   return json({ success: false, error: 'Loyalty route not found' }, 404);
 }
 
-// ─── PAYMENT HISTORY ───
+// ─── PAYMENTS ROUTES ───
 async function handlePayments(request, env) {
   const url = new URL(request.url);
   const user = await verifyToken(request, env);
 
-  // GET /api/payments/customer/history
   if (url.pathname === '/api/payments/customer/history' && request.method === 'GET') {
     const payments = await env.DB.prepare(`
       SELECT p.*, b.service_name 
@@ -171,37 +200,35 @@ async function handlePayments(request, env) {
   return json({ success: false, error: 'Payment route not found' }, 404);
 }
 
-// ─── DISCOVERY ───
-async function handleDiscovery(request, env) {
+// ─── CUSTOMER BOOKINGS ───
+async function handleCustomerBookings(request, env) {
   const url = new URL(request.url);
+  const user = await verifyToken(request, env);
 
-  // GET /api/discovery/providers
-  if (url.pathname === '/api/discovery/providers' && request.method === 'GET') {
-    const providers = await env.DB.prepare('SELECT id, business_name, address, rating FROM users WHERE role = "provider" AND is_active = 1').all();
-    return json({ success: true, providers: providers.results });
+  if (url.pathname === '/api/services/customer/bookings' && request.method === 'GET') {
+    const bookings = await env.DB.prepare(`
+      SELECT b.*, s.name as service_name, u.business_name as provider_name 
+      FROM bookings b 
+      JOIN services s ON b.service_id = s.id 
+      JOIN users u ON b.provider_id = u.id 
+      WHERE b.customer_id = ? 
+      ORDER BY b.created_at DESC
+    `).bind(user.id).all();
+    return json({ success: true, bookings: bookings.results });
   }
 
-  // GET /api/discovery/drivers
-  if (url.pathname === '/api/discovery/drivers' && request.method === 'GET') {
-    const drivers = await env.DB.prepare('SELECT id, first_name, last_name, vehicle_model FROM users WHERE role = "driver" AND is_active = 1').all();
-    return json({ success: true, drivers: drivers.results });
+  if (url.pathname === '/api/services/customer/bookings' && request.method === 'POST') {
+    const { serviceId, vehicleId, bookingDate, bookingTime, isConcierge, pickupAddress, notes } = await request.json();
+    const service = await env.DB.prepare('SELECT * FROM services WHERE id = ?').bind(serviceId).first();
+    
+    const result = await env.DB.prepare(
+      'INSERT INTO bookings (customer_id, provider_id, service_id, service_name, booking_date, booking_time, total_amount, is_concierge, pickup_address, notes, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).bind(user.id, service.provider_id, serviceId, service.name, bookingDate, bookingTime, service.base_price, isConcierge ? 1 : 0, pickupAddress, notes, 'pending').run();
+    
+    return json({ success: true, booking: { id: result.meta.last_row_id, totalAmount: service.base_price } });
   }
 
-  // GET /api/discovery/services
-  if (url.pathname === '/api/discovery/services' && request.method === 'GET') {
-    const services = await env.DB.prepare('SELECT s.*, u.business_name as provider_name FROM services s JOIN users u ON s.provider_id = u.id WHERE s.is_active = 1').all();
-    return json({ success: true, services: services.results });
-  }
-
-  // GET /api/discovery/stats
-  if (url.pathname === '/api/discovery/stats' && request.method === 'GET') {
-    const providers = await env.DB.prepare('SELECT COUNT(*) as count FROM users WHERE role = "provider"').first();
-    const drivers = await env.DB.prepare('SELECT COUNT(*) as count FROM users WHERE role = "driver"').first();
-    const services = await env.DB.prepare('SELECT COUNT(*) as count FROM services WHERE is_active = 1').first();
-    return json({ success: true, stats: { providers: providers.count, drivers: drivers.count, services: services.count } });
-  }
-
-  return json({ success: false, error: 'Discovery route not found' }, 404);
+  return json({ success: false, error: 'Customer booking route not found' }, 404);
 }
 
 // ─── MAIN ROUTER ───
@@ -218,25 +245,20 @@ export default {
         return json({ status: 'healthy', service: 'Car Care Connect API', timestamp: new Date().toISOString() });
       }
 
-      // Auth routes
-      if (path.startsWith('/api/auth')) return await handleAuth(request, env);
-      
-      // Customer vehicles
-      if (path.startsWith('/api/services/customer/vehicles')) return await handleVehicles(request, env);
-      
-      // Customer bookings
-      if (path === '/api/services/customer/bookings') return await handleCustomerBookings(request, env);
-      
-      // Loyalty
-      if (path === '/api/loyalty/my-points') return await handleLoyalty(request, env);
-      
-      // Payments
-      if (path === '/api/payments/customer/history') return await handlePayments(request, env);
-      
-      // Discovery
-      if (path.startsWith('/api/discovery')) return await handleDiscovery(request, env);
+      // Test endpoint
+      if (path === '/api/test') {
+        const result = await env.DB.prepare('SELECT COUNT(*) as count FROM users').first();
+        return json({ success: true, dbConnected: true, userCount: result.count });
+      }
 
-      // Default 404
+      // Route to handlers
+      if (path.startsWith('/api/auth')) return await handleAuth(request, env);
+      if (path.startsWith('/api/discovery')) return await handleDiscovery(request, env);
+      if (path.startsWith('/api/services/customer/vehicles')) return await handleVehicles(request, env);
+      if (path === '/api/services/customer/bookings') return await handleCustomerBookings(request, env);
+      if (path === '/api/loyalty/my-points') return await handleLoyalty(request, env);
+      if (path === '/api/payments/customer/history') return await handlePayments(request, env);
+
       return json({ success: false, error: 'Not found' }, 404);
     } catch (err) {
       console.error('Worker error:', err);

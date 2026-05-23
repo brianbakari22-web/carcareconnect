@@ -1,290 +1,185 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { io } from 'socket.io-client';
+// hooks/useSocket.js - Cloudflare WebSocket Connection
+import { useEffect, useRef, useState } from 'react';
+
+const WS_URL = 'wss://carcare-realtime.brianbakari22.workers.dev';
 
 export const useSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
-  const [socketId, setSocketId] = useState(null);
-  const [onlineDrivers, setOnlineDrivers] = useState([]);
   const socketRef = useRef(null);
-  
-  const token = localStorage.getItem('token');
-  
+  const [driverLocations, setDriverLocations] = useState({});
+
   useEffect(() => {
-    if (!token) {
-      console.log('No token, skipping socket connection');
-      return;
-    }
-    
-    // Connect to socket server
-    socketRef.current = io('https://carcare-api.brianbakari22.workers.dev', {
-      auth: { token },
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000
-    });
-    
-    socketRef.current.on('connect', () => {
-      console.log('🔌 Socket connected:', socketRef.current.id);
+    // Connect to Cloudflare WebSocket
+    const ws = new WebSocket(`${WS_URL}/ws/driver`);
+    socketRef.current = ws;
+
+    ws.onopen = () => {
+      console.log('✅ WebSocket connected to Cloudflare');
       setIsConnected(true);
-      setSocketId(socketRef.current.id);
-    });
-    
-    socketRef.current.on('disconnect', () => {
-      console.log('🔌 Socket disconnected');
-      setIsConnected(false);
-      setSocketId(null);
-    });
-    
-    socketRef.current.on('connect_error', (error) => {
-      console.error('Socket connection error:', error.message);
-      setIsConnected(false);
-    });
-    
-    // Listen for driver status changes
-    socketRef.current.on('driver:status-change', (data) => {
-      console.log('Driver status change:', data);
-      // Update online drivers list
-      setOnlineDrivers(prev => {
-        if (data.isOnline) {
-          // Add driver if not already in list
-          if (!prev.some(d => d.id === data.driverId)) {
-            return [...prev, { id: data.driverId, name: data.driverName, isOnline: true }];
-          }
-        } else {
-          // Remove driver from list
-          return prev.filter(d => d.id !== data.driverId);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('📡 WebSocket message:', data);
+        
+        if (data.type === 'location-update') {
+          setDriverLocations(prev => ({
+            ...prev,
+            [data.driverId]: data.location
+          }));
         }
-        return prev;
-      });
-    });
-    
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
+      } catch (e) {
+        console.error('Parse error:', e);
       }
     };
-  }, [token]);
-  
-  // ============ DRIVER FUNCTIONS ============
-  const updateDriverLocation = useCallback((lat, lng, address) => {
-    if (socketRef.current && isConnected) {
-      socketRef.current.emit('driver:update-location', { lat, lng, address });
-    }
-  }, [isConnected]);
-  
-  const goOnline = useCallback(() => {
-    if (socketRef.current && isConnected) {
-      socketRef.current.emit('driver:go-online');
-    }
-  }, [isConnected]);
-  
-  const goOffline = useCallback(() => {
-    if (socketRef.current && isConnected) {
-      socketRef.current.emit('driver:go-offline');
-    }
-  }, [isConnected]);
-  
-  // ============ CUSTOMER FUNCTIONS ============
-  const subscribeToDriver = useCallback((driverId) => {
-    if (socketRef.current && isConnected) {
-      socketRef.current.emit('driver:subscribe', { driverId });
-    }
-  }, [isConnected]);
-  
-  const unsubscribeFromDriver = useCallback((driverId) => {
-    if (socketRef.current && isConnected) {
-      socketRef.current.emit('driver:unsubscribe', { driverId });
-    }
-  }, [isConnected]);
-  
-  const getOnlineDrivers = useCallback(() => {
-    if (socketRef.current && isConnected) {
-      socketRef.current.emit('drivers:get-online');
-    }
-  }, [isConnected]);
-  
-  // ============ BOOKING FUNCTIONS ============
-  const updateBookingStatus = useCallback((bookingId, status, notes = null) => {
-    if (socketRef.current && isConnected) {
-      socketRef.current.emit('booking:update-status', { bookingId, status, notes });
-    }
-  }, [isConnected]);
-  
-  const joinBookingRoom = useCallback((bookingId) => {
-    if (socketRef.current && isConnected) {
-      socketRef.current.emit('booking:join', { bookingId });
-    }
-  }, [isConnected]);
-  
-  // ============ CHAT FUNCTIONS ============
-  const sendChatMessage = useCallback((toUserId, message, bookingId = null) => {
-    if (socketRef.current && isConnected && message.trim()) {
-      socketRef.current.emit('chat:send', { toUserId, message, bookingId });
-    }
-  }, [isConnected]);
-  
-  const markMessagesRead = useCallback((fromUserId) => {
-    if (socketRef.current && isConnected) {
-      socketRef.current.emit('chat:mark-read', { fromUserId });
-    }
-  }, [isConnected]);
-  
-  const startTyping = useCallback((toUserId, bookingId = null) => {
-    if (socketRef.current && isConnected) {
-      socketRef.current.emit('typing:start', { toUserId, bookingId });
-    }
-  }, [isConnected]);
-  
-  const stopTyping = useCallback((toUserId, bookingId = null) => {
-    if (socketRef.current && isConnected) {
-      socketRef.current.emit('typing:stop', { toUserId, bookingId });
-    }
-  }, [isConnected]);
-  
-  // ============ NOTIFICATION FUNCTIONS ============
-  const markNotificationRead = useCallback((notificationId) => {
-    if (socketRef.current && isConnected) {
-      socketRef.current.emit('notification:read', { notificationId });
-    }
-  }, [isConnected]);
-  
-  const markAllNotificationsRead = useCallback(() => {
-    if (socketRef.current && isConnected) {
-      socketRef.current.emit('notifications:read-all');
-    }
-  }, [isConnected]);
-  
-  // ============ EVENT LISTENERS ============
-  const onDriverLocationUpdate = useCallback((callback) => {
-    if (socketRef.current) {
-      socketRef.current.on('driver:location-update', callback);
-      return () => socketRef.current.off('driver:location-update', callback);
-    }
-    return () => {};
+
+    ws.onclose = () => {
+      console.log('❌ WebSocket disconnected');
+      setIsConnected(false);
+      // Reconnect after 3 seconds
+      setTimeout(() => {
+        if (socketRef.current?.readyState !== WebSocket.OPEN) {
+          console.log('🔄 Reconnecting...');
+          const newWs = new WebSocket(`${WS_URL}/ws/driver`);
+          socketRef.current = newWs;
+        }
+      }, 3000);
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    };
   }, []);
-  
-  const onDriverLiveLocation = useCallback((callback) => {
-    if (socketRef.current) {
-      socketRef.current.on('driver:live-location', callback);
-      return () => socketRef.current.off('driver:live-location', callback);
+
+  const updateDriverLocation = (lat, lng) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        type: 'location',
+        location: { lat, lng }
+      }));
     }
-    return () => {};
-  }, []);
-  
-  const onBookingStatusChanged = useCallback((callback) => {
-    if (socketRef.current) {
-      socketRef.current.on('booking:status-changed', callback);
-      return () => socketRef.current.off('booking:status-changed', callback);
+  };
+
+  const goOnline = () => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        type: 'status',
+        status: 'online'
+      }));
     }
-    return () => {};
-  }, []);
-  
-  const onNewMessage = useCallback((callback) => {
-    if (socketRef.current) {
-      socketRef.current.on('chat:receive', callback);
-      return () => socketRef.current.off('chat:receive', callback);
+  };
+
+  const goOffline = () => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        type: 'status',
+        status: 'offline'
+      }));
     }
-    return () => {};
-  }, []);
-  
-  const onRoomMessage = useCallback((callback) => {
-    if (socketRef.current) {
-      socketRef.current.on('chat:room-message', callback);
-      return () => socketRef.current.off('chat:room-message', callback);
+  };
+
+  const updateBookingStatus = (bookingId, status) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        type: 'booking-status',
+        bookingId,
+        status
+      }));
     }
-    return () => {};
-  }, []);
-  
-  const onChatHistory = useCallback((callback) => {
-    if (socketRef.current) {
-      socketRef.current.on('chat:history', callback);
-      return () => socketRef.current.off('chat:history', callback);
+  };
+
+  const joinBookingRoom = (bookingId) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        type: 'join-booking',
+        bookingId
+      }));
     }
-    return () => {};
-  }, []);
-  
-  const onTypingStart = useCallback((callback) => {
-    if (socketRef.current) {
-      socketRef.current.on('typing:start', callback);
-      return () => socketRef.current.off('typing:start', callback);
+  };
+
+  const subscribeToDriver = (driverId) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        type: 'track-driver',
+        driverId
+      }));
     }
-    return () => {};
-  }, []);
-  
-  const onTypingStop = useCallback((callback) => {
-    if (socketRef.current) {
-      socketRef.current.on('typing:stop', callback);
-      return () => socketRef.current.off('typing:stop', callback);
+  };
+
+  const unsubscribeFromDriver = (driverId) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        type: 'stop-tracking',
+        driverId
+      }));
     }
-    return () => {};
-  }, []);
-  
-  const onNewNotification = useCallback((callback) => {
-    if (socketRef.current) {
-      socketRef.current.on('notification:new', callback);
-      return () => socketRef.current.off('notification:new', callback);
-    }
-    return () => {};
-  }, []);
-  
-  const onOnlineDriversList = useCallback((callback) => {
-    if (socketRef.current) {
-      socketRef.current.on('drivers:online-list', callback);
-      return () => socketRef.current.off('drivers:online-list', callback);
-    }
-    return () => {};
-  }, []);
-  
-  const onDriverStatusChange = useCallback((callback) => {
-    if (socketRef.current) {
-      socketRef.current.on('driver:status-change', callback);
-      return () => socketRef.current.off('driver:status-change', callback);
-    }
-    return () => {};
-  }, []);
-  
+  };
+
+  // Event listeners
+  const onDriverLiveLocation = (callback) => {
+    const handler = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'location-update') {
+        callback(data);
+      }
+    };
+    socketRef.current?.addEventListener('message', handler);
+    return () => socketRef.current?.removeEventListener('message', handler);
+  };
+
+  const onBookingStatusChanged = (callback) => {
+    const handler = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'booking-update') {
+        callback(data);
+      }
+    };
+    socketRef.current?.addEventListener('message', handler);
+    return () => socketRef.current?.removeEventListener('message', handler);
+  };
+
+  const onNewNotification = (callback) => {
+    const handler = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'notification') {
+        callback(data);
+      }
+    };
+    socketRef.current?.addEventListener('message', handler);
+    return () => socketRef.current?.removeEventListener('message', handler);
+  };
+
+  const onDriverStatusChange = (callback) => {
+    const handler = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'driver-status') {
+        callback(data);
+      }
+    };
+    socketRef.current?.addEventListener('message', handler);
+    return () => socketRef.current?.removeEventListener('message', handler);
+  };
+
   return {
-    // State
     isConnected,
-    socketId,
-    onlineDrivers,
-    
-    // Driver actions
+    driverLocations,
     updateDriverLocation,
     goOnline,
     goOffline,
-    
-    // Customer actions
-    subscribeToDriver,
-    unsubscribeFromDriver,
-    getOnlineDrivers,
-    
-    // Booking actions
     updateBookingStatus,
     joinBookingRoom,
-    
-    // Chat actions
-    sendChatMessage,
-    markMessagesRead,
-    startTyping,
-    stopTyping,
-    
-    // Notification actions
-    markNotificationRead,
-    markAllNotificationsRead,
-    
-    // Event listeners
-    onDriverLocationUpdate,
+    subscribeToDriver,
+    unsubscribeFromDriver,
     onDriverLiveLocation,
     onBookingStatusChanged,
-    onNewMessage,
-    onRoomMessage,
-    onChatHistory,
-    onTypingStart,
-    onTypingStop,
     onNewNotification,
-    onOnlineDriversList,
     onDriverStatusChange
   };
 };

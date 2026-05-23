@@ -15,7 +15,7 @@ function LoyaltyWidget({ userId }) {
   
   const fetchLoyalty = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/loyalty/my-points', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/loyalty/my-points', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -37,7 +37,7 @@ function LoyaltyWidget({ userId }) {
     }
     
     try {
-      const res = await fetch('http://localhost:5000/api/loyalty/redeem', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/loyalty/redeem', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,0 +1,36 @@
+name = "carcare-realtime"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+# KV Namespaces - All 7 bindings
+[[kv_namespaces]]
+binding = "DRIVER_LOCATIONS"
+id = "11ed9c75be664367892c39907f86e008"
+
+[[kv_namespaces]]
+binding = "DRIVER_STATUS"
+id = "f9687613a1254235a9cdc069a32e1533"
+
+[[kv_namespaces]]
+binding = "DRIVER_FOLLOWERS"
+id = "fbef456cc2f74517bc6c2b8b59097aa3"
+
+[[kv_namespaces]]
+binding = "DRIVER_CONNECTIONS"
+id = "5ae94cda26cb402d8734b65cb690a004"
+
+[[kv_namespaces]]
+binding = "CUSTOMER_CONNECTIONS"
+id = "8fd3ef507951457a88e07f10eb761c13"
+
+[[kv_namespaces]]
+binding = "PROVIDER_CONNECTIONS"
+id = "8c8c866e6a274f6a9b341c5a43c9c271"
+
+[[kv_namespaces]]
+binding = "BOOKING_STATUS"
+id = "961be92d1aee49cebc71521288790d2c"
+
+# Environment variables
+[vars]
+ENVIRONMENT = "production"

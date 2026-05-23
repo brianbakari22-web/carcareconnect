@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useSocket } from '../hooks/useSocket';
+import { useRealtime } from '../hooks/useRealtime';
 import WhatsAppButton from '../components/WhatsAppButton';
 import { StatCard, ModernButton, Badge } from '../components/ModernUI';
 import { initializePushNotifications, requestNotificationPermission, sendPushNotification } from '../utils/pushNotifications';
@@ -54,10 +55,14 @@ function DriverDashboard({ user, onLogout }) {
   const [driverStats, setDriverStats] = useState({ rating: 4.8, totalRatings: 0, acceptanceRate: 98, onTimeRate: 96, totalDistance: 0, totalHours: 0 });
 
   const token = localStorage.getItem('token');
+  const driverId = user?._id;
+
+  // Real-time WebSocket connection
+  const { isConnected: wsConnected, sendLocation, updateStatus } = useRealtime('driver', driverId);
 
   const fetchUserProfile = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/auth/me', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/auth/me', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -102,7 +107,7 @@ function DriverDashboard({ user, onLogout }) {
 
   const fetchDriverRating = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/reviews/driver/my-ratings', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/reviews/driver/my-ratings', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -136,6 +141,7 @@ function DriverDashboard({ user, onLogout }) {
         setCurrentLocation(newLocation);
         if (isOnline) {
           updateDriverLocation(latitude, longitude);
+          sendLocation(latitude, longitude);
         }
         setIsSharingLocation(true);
       },
@@ -167,16 +173,18 @@ function DriverDashboard({ user, onLogout }) {
     setIsOnline(online);
     if (online) {
       goOnline();
+      updateStatus('online');
       startLocationTracking();
       toast.success('You are now online! Customers can see your location.');
       sendPushNotification('You are Online', 'Customers can now see your location');
     } else {
       goOffline();
+      updateStatus('offline');
       stopLocationTracking();
       toast.info('You are now offline');
     }
     try {
-      await fetch('http://localhost:5000/api/driver/status', {
+      await fetch('https://carcare-api.brianbakari22.workers.dev/api/driver/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ isOnline: online })
@@ -229,7 +237,7 @@ function DriverDashboard({ user, onLogout }) {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const dashboardRes = await fetch('http://localhost:5000/api/driver/dashboard', {
+      const dashboardRes = await fetch('https://carcare-api.brianbakari22.workers.dev/api/driver/dashboard', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const dashboardData = await dashboardRes.json();
@@ -263,7 +271,7 @@ function DriverDashboard({ user, onLogout }) {
 
   const fetchBankAccount = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/driver/bank-account', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/driver/bank-account', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -276,7 +284,7 @@ function DriverDashboard({ user, onLogout }) {
 
   const fetchPayoutHistory = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/driver/payout-history', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/driver/payout-history', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -292,7 +300,7 @@ function DriverDashboard({ user, onLogout }) {
     e.preventDefault();
     setLoadingBank(true);
     try {
-      const res = await fetch('http://localhost:5000/api/driver/bank-account', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/driver/bank-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(bankAccount)
@@ -312,7 +320,7 @@ function DriverDashboard({ user, onLogout }) {
   const deleteBankAccount = async () => {
     if (window.confirm('Remove bank account?')) {
       try {
-        const res = await fetch('http://localhost:5000/api/driver/bank-account', {
+        const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/driver/bank-account', {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -328,7 +336,7 @@ function DriverDashboard({ user, onLogout }) {
 
   const checkStripeStatus = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/stripe/account-status', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/stripe/account-status', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -339,7 +347,7 @@ function DriverDashboard({ user, onLogout }) {
   const connectStripe = async () => {
     setLoadingStripe(true);
     try {
-      const res = await fetch('http://localhost:5000/api/stripe/onboarding-link', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/stripe/onboarding-link', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -352,7 +360,7 @@ function DriverDashboard({ user, onLogout }) {
   const disconnectStripe = async () => {
     if (window.confirm('Disconnect Stripe?')) {
       try {
-        const res = await fetch('http://localhost:5000/api/stripe/disconnect', {
+        const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/stripe/disconnect', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -380,7 +388,7 @@ function DriverDashboard({ user, onLogout }) {
       return;
     }
     try {
-      const res = await fetch('http://localhost:5000/api/driver/payout', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/driver/payout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ amount: parseFloat(payoutAmount) })
@@ -400,7 +408,7 @@ function DriverDashboard({ user, onLogout }) {
 
   const acceptDelivery = async (deliveryId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/driver/accept/${deliveryId}`, {
+      const res = await fetch(`https://carcare-api.brianbakari22.workers.dev/api/driver/accept/${deliveryId}`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -418,7 +426,7 @@ function DriverDashboard({ user, onLogout }) {
   const updateDeliveryStatus = async (deliveryId, status) => {
     try {
       updateBookingStatus(deliveryId, status);
-      const res = await fetch(`http://localhost:5000/api/driver/delivery/${deliveryId}/status`, {
+      const res = await fetch(`https://carcare-api.brianbakari22.workers.dev/api/driver/delivery/${deliveryId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ status })
@@ -437,7 +445,7 @@ function DriverDashboard({ user, onLogout }) {
   const updateVehicleInfo = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/driver/vehicle', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/driver/vehicle', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(vehicleInfo)
@@ -454,7 +462,7 @@ function DriverDashboard({ user, onLogout }) {
   const updateProfile = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/driver/profile', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/driver/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(editProfileData)
@@ -473,7 +481,7 @@ function DriverDashboard({ user, onLogout }) {
 
   const downloadInvoice = async (payoutId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/invoices/download/${payoutId}`, {
+      const res = await fetch(`https://carcare-api.brianbakari22.workers.dev/api/invoices/download/${payoutId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -552,7 +560,7 @@ function DriverDashboard({ user, onLogout }) {
     notificationIcon: { position: 'relative', cursor: 'pointer', fontSize: '22px' },
     notificationBadge: { position: 'absolute', top: '-8px', right: '-8px', backgroundColor: '#ef4444', color: 'white', fontSize: '10px', padding: '2px 6px', borderRadius: '10px' },
     themeToggle: { background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '8px', borderRadius: '8px', backgroundColor: darkMode ? '#334155' : '#f3f4f6' },
-    wsBadge: { backgroundColor: isConnected ? '#10b981' : '#ef4444', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', color: 'white', display: 'flex', alignItems: 'center', gap: '5px' },
+    wsBadge: { backgroundColor: isConnected && wsConnected ? '#10b981' : '#ef4444', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', color: 'white', display: 'flex', alignItems: 'center', gap: '5px' },
     onlineToggle: {
       display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 15px', borderRadius: '20px',
       border: 'none', color: 'white', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold',
@@ -711,8 +719,8 @@ function DriverDashboard({ user, onLogout }) {
           </div>
           <div style={styles.headerRight}>
             <div style={styles.wsBadge}>
-              <span style={{ width: '8px', height: '8px', backgroundColor: isConnected ? '#10b981' : '#ef4444', borderRadius: '50%', display: 'inline-block' }}></span>
-              {isConnected ? 'Live' : 'Offline'}
+              <span style={{ width: '8px', height: '8px', backgroundColor: isConnected && wsConnected ? '#10b981' : '#ef4444', borderRadius: '50%', display: 'inline-block' }}></span>
+              {isConnected && wsConnected ? 'Live' : 'Offline'}
             </div>
             <button style={styles.onlineToggle} onClick={() => handleOnlineToggle(!isOnline)}>
               <span style={{ width: '8px', height: '8px', backgroundColor: 'white', borderRadius: '50%', display: 'inline-block' }}></span>
@@ -766,9 +774,10 @@ function DriverDashboard({ user, onLogout }) {
             <div style={styles.quickStat}><span>🚗</span> Online: {isOnline ? 'Yes' : 'No'}</div>
             <div style={styles.quickStat}><span>📦</span> Available: {availableDeliveries.length}</div>
             <div style={styles.quickStat}><span>🚚</span> Active: {activeJobs.length}</div>
-            <div style={styles.quickStat}><span>🟢</span> Socket: {isConnected ? 'Connected' : 'Disconnected'}</div>
+            <div style={styles.quickStat}><span>🟢</span> Socket: {isConnected && wsConnected ? 'Connected' : 'Disconnected'}</div>
             <div style={styles.quickStat}><span>⭐</span> Rating: {driverRating || driverStats.rating} ({totalReviews} reviews)</div>
             <div style={styles.quickStat}><span>📍</span> GPS: {isSharingLocation ? 'Active' : 'Inactive'}</div>
+            <div style={styles.quickStat}><span>🌐</span> WebSocket: {wsConnected ? '✅ Real-time Active' : '❌ Connecting...'}</div>
           </div>
 
           {activeTab === 'dashboard' && (

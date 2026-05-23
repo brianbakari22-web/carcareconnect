@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Car Care Connect | Premium Admin Dashboard</title>
+    <title>Car Care Connect | Admin Dashboard with Real-Time</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     
     <style>
         * {
@@ -57,18 +58,6 @@
         body.dark th {
             background: #334155;
             color: #e2e8f0;
-        }
-
-        body.dark .driver-item {
-            background: #334155;
-            color: white;
-        }
-
-        body.dark .filter-select,
-        body.dark .filter-input {
-            background: #334155;
-            color: white;
-            border-color: #475569;
         }
 
         .admin-container {
@@ -244,6 +233,10 @@
             gap: 6px;
         }
 
+        .ws-badge.offline {
+            background: #ef4444;
+        }
+
         .ws-badge::before {
             content: "";
             width: 8px;
@@ -253,9 +246,24 @@
             animation: pulse 1.5s infinite;
         }
 
+        .ws-badge.offline::before {
+            animation: none;
+        }
+
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
+        }
+
+        .cf-badge {
+            background: #f59e0b;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 10px;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .theme-toggle {
@@ -298,11 +306,6 @@
             font-weight: 600;
             font-size: 13px;
             transition: all 0.2s;
-        }
-
-        .logout-btn:hover {
-            background: #dc2626;
-            transform: translateY(-1px);
         }
 
         .content-area {
@@ -412,25 +415,13 @@
             animation: pulse 1.5s infinite;
         }
 
-        .revenue-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 20px;
-            margin-bottom: 28px;
-        }
-
-        .revenue-card {
-            background: white;
-            padding: 20px;
+        .real-time-badge {
+            background: #8b5cf6;
+            color: white;
+            padding: 4px 12px;
             border-radius: 20px;
-            text-align: center;
-            border: 1px solid #eef2f6;
-        }
-
-        .revenue-value {
-            font-size: 28px;
-            font-weight: 800;
-            color: #667eea;
+            font-size: 11px;
+            margin-left: 10px;
         }
 
         .table-wrapper {
@@ -474,10 +465,6 @@
             margin: 2px;
         }
 
-        .btn-sm:hover {
-            transform: translateY(-1px);
-        }
-
         .btn-danger { background: #ef4444; color: white; }
         .btn-success { background: #10b981; color: white; }
         .btn-purple { background: #8b5cf6; color: white; }
@@ -497,8 +484,6 @@
         .badge-progress { background: #e0e7ff; color: #4338ca; }
         .badge-completed { background: #d1fae5; color: #065f46; }
         .badge-cancelled { background: #fee2e2; color: #991b1b; }
-        .badge-active { background: #d1fae5; color: #065f46; }
-        .badge-inactive { background: #fee2e2; color: #991b1b; }
 
         .filters {
             display: flex;
@@ -506,48 +491,13 @@
             flex-wrap: wrap;
         }
 
-        .filter-select,
-        .filter-input {
+        .filter-select {
             padding: 8px 16px;
             border: 1px solid #e2e8f0;
             border-radius: 10px;
             font-size: 13px;
             background: white;
             font-family: 'Inter', sans-serif;
-        }
-
-        .pending-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px 0;
-            border-bottom: 1px solid #f1f5f9;
-            flex-wrap: wrap;
-            gap: 12px;
-        }
-
-        .chart-container {
-            display: flex;
-            justify-content: space-around;
-            align-items: flex-end;
-            height: 250px;
-            padding: 20px;
-            gap: 20px;
-        }
-
-        .chart-bar {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-            width: 70px;
-        }
-
-        .bar-fill {
-            width: 40px;
-            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
-            border-radius: 10px;
-            transition: height 0.3s;
         }
 
         .modal {
@@ -564,9 +514,7 @@
             z-index: 1000;
         }
 
-        .modal.active {
-            display: flex;
-        }
+        .modal.active { display: flex; }
 
         .modal-content {
             background: white;
@@ -576,29 +524,6 @@
             width: 90%;
             max-height: 85vh;
             overflow: auto;
-        }
-
-        .modal-content h3 {
-            margin-bottom: 20px;
-            font-size: 22px;
-        }
-
-        .modal-content input,
-        .modal-content select,
-        .modal-content textarea {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0 16px;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            font-family: 'Inter', sans-serif;
-        }
-
-        .modal-actions {
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-            margin-top: 24px;
         }
 
         .empty-state {
@@ -619,8 +544,8 @@
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
-                    <div class="logo-icon">🚗💨</div>
-                    <span class="logo-text">Car Care Connect</span>
+                    <div class="logo-icon">👑</div>
+                    <span class="logo-text">Car Care Admin</span>
                 </div>
                 <button class="collapse-btn" onclick="toggleSidebar()">‹</button>
             </div>
@@ -654,7 +579,8 @@
             <div class="top-header">
                 <h1 class="header-title" id="pageTitle">Dashboard</h1>
                 <div class="header-right">
-                    <div class="ws-badge">Live Connection</div>
+                    <div class="ws-badge" id="wsBadge">Socket: Connecting...</div>
+                    <div class="cf-badge" id="cfBadge">☁️ Cloudflare: Connecting...</div>
                     <button class="theme-toggle" onclick="toggleDarkMode()">🌙</button>
                     <div class="user-info">
                         <div class="avatar" id="adminAvatar">AD</div>
@@ -675,12 +601,8 @@
             <textarea id="adminNotes" placeholder="Admin notes" rows="3"></textarea>
             <div class="modal-actions">
                 <button class="btn-sm btn-success" onclick="approveRefund()">Approve</button>
-                <button class="btn-sm btn-danger" onclick="showRejectReason()">Reject</button>
+                <button class="btn-sm btn-danger" onclick="rejectRefund()">Reject</button>
                 <button class="btn-sm" onclick="closeModal('refundModal')">Cancel</button>
-            </div>
-            <div id="rejectSection" style="display:none; margin-top:16px;">
-                <textarea id="rejectionReason" placeholder="Rejection reason" rows="2"></textarea>
-                <button class="btn-sm btn-danger" onclick="rejectRefund()">Confirm</button>
             </div>
         </div>
     </div>
@@ -703,18 +625,137 @@
     </div>
 
     <script>
-        const API_URL = 'https://carcareconnect-backend.onrender.com';
+        const API_URL = 'http://localhost:5000';
+        const CLOUDFLARE_API_URL = 'https://carcare-realtime.brianbakari22.workers.dev';
+        
         let token = localStorage.getItem('adminToken');
         let currentTab = 'dashboard';
         let allUsers = [], allBookings = [], allServices = [], allRefunds = [], allReviews = [], allPromoCodes = [], allLoyalty = [];
         let paymentAnalytics = { monthlyRevenue: [], recentTransactions: [] };
         let pendingPayouts = { providerPayouts: [], driverPayouts: [] };
         let filterRole = 'all', filterStatus = 'all', searchTerm = '';
-        let onlineDrivers = [];
         let darkMode = false;
         let sidebarCollapsed = false;
         let selectedRefund = null;
-        let stats = { users: { total: 0 }, bookings: { total: 0, completed: 0, pending: 0 }, payments: { totalRevenue: 0 }, platform: { rating: 4.8 } };
+        
+        // WebSocket connections
+        let socketConnected = false;
+        let cfRealtimeConnected = false;
+        let driverLocations = {};
+        
+        // Cloudflare WebSocket for real-time driver tracking
+        let cfSocket = null;
+        
+        const corsHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+        
+        let stats = {
+            users: { total: 0, customers: 0, providers: 0, drivers: 0 },
+            bookings: { total: 0, completed: 0, pending: 0, cancelled: 0, weekly: 0 },
+            payments: { totalRevenue: 0, totalCommission: 0, totalProviderPayouts: 0, totalDriverPayouts: 0 },
+            platform: { rating: 4.8 }
+        };
+
+        // Connect to Cloudflare Real-time WebSocket
+        function connectCloudflareRealtime() {
+            if (!token) return;
+            
+            try {
+                cfSocket = new WebSocket(`${CLOUDFLARE_API_URL}/ws/admin`);
+                
+                cfSocket.onopen = () => {
+                    console.log('✅ Cloudflare real-time connected');
+                    cfRealtimeConnected = true;
+                    document.getElementById('cfBadge').textContent = '☁️ Cloudflare: Live';
+                    document.getElementById('cfBadge').style.background = '#10b981';
+                    
+                    // Register as admin
+                    cfSocket.send(JSON.stringify({ type: 'register', role: 'admin' }));
+                };
+                
+                cfSocket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('📡 Cloudflare real-time event:', data);
+                        
+                        if (data.type === 'location-update') {
+                            // Update driver location in real-time
+                            driverLocations[data.driverId] = data.location;
+                            updateDriverLocationInUI(data.driverId, data.location);
+                        } else if (data.type === 'driver-online') {
+                            showToast(`🚗 Driver ${data.driverId} is now online`, 'info');
+                            refreshOnlineDrivers();
+                        } else if (data.type === 'driver-offline') {
+                            showToast(`🚗 Driver ${data.driverId} went offline`, 'info');
+                            refreshOnlineDrivers();
+                        } else if (data.type === 'new-booking') {
+                            showToast(`🔔 New booking created: ${data.serviceName}`, 'success');
+                            if (currentTab === 'dashboard') refreshDashboard();
+                        } else if (data.type === 'booking-status') {
+                            showToast(`📅 Booking ${data.bookingId} status: ${data.status}`, 'info');
+                            if (currentTab === 'bookings') refreshBookings();
+                        }
+                    } catch (e) {
+                        console.error('Parse error:', e);
+                    }
+                };
+                
+                cfSocket.onclose = () => {
+                    console.log('❌ Cloudflare real-time disconnected');
+                    cfRealtimeConnected = false;
+                    document.getElementById('cfBadge').textContent = '☁️ Cloudflare: Offline';
+                    document.getElementById('cfBadge').style.background = '#ef4444';
+                    
+                    // Attempt to reconnect after 5 seconds
+                    setTimeout(connectCloudflareRealtime, 5000);
+                };
+                
+                cfSocket.onerror = (error) => {
+                    console.error('Cloudflare WebSocket error:', error);
+                    cfRealtimeConnected = false;
+                };
+            } catch (error) {
+                console.error('Failed to connect to Cloudflare:', error);
+            }
+        }
+        
+        function updateDriverLocationInUI(driverId, location) {
+            // Update any open driver location displays
+            const driverElements = document.querySelectorAll(`[data-driver-id="${driverId}"]`);
+            driverElements.forEach(el => {
+                el.querySelector('.driver-lat').textContent = location.lat.toFixed(6);
+                el.querySelector('.driver-lng').textContent = location.lng.toFixed(6);
+                el.querySelector('.driver-time').textContent = new Date().toLocaleTimeString();
+            });
+        }
+        
+        function refreshOnlineDrivers() {
+            fetch(`${CLOUDFLARE_API_URL}/api/online-drivers`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && currentTab === 'dashboard') {
+                        const onlineDriversList = document.getElementById('onlineDriversList');
+                        if (onlineDriversList) {
+                            onlineDriversList.innerHTML = data.drivers.map(d => 
+                                `<div class="driver-item"><span class="online-dot"></span> ${d}</div>`
+                            ).join('');
+                        }
+                    }
+                })
+                .catch(err => console.error('Failed to fetch online drivers:', err));
+        }
+        
+        function showToast(message, type = 'info') {
+            // Simple toast notification
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed; bottom: 20px; right: 20px; background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#8b5cf6'};
+                color: white; padding: 12px 20px; border-radius: 10px; z-index: 1000; font-size: 14px;
+                animation: slideIn 0.3s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
 
         async function fetchWithToken(url, options = {}) {
             const response = await fetch(url, {
@@ -759,6 +800,7 @@
                     token = data.token;
                     const user = data.user;
                     document.getElementById('adminAvatar').textContent = (user.firstName?.[0] || 'A') + (user.lastName?.[0] || 'D');
+                    connectCloudflareRealtime();
                     await loadDashboard();
                 } else {
                     document.getElementById('loginError').innerText = data.message || 'Invalid credentials';
@@ -769,6 +811,9 @@
         }
 
         function handleLogout() {
+            if (cfSocket && cfSocket.readyState === WebSocket.OPEN) {
+                cfSocket.close();
+            }
             localStorage.removeItem('adminToken');
             localStorage.removeItem('adminUser');
             token = null;
@@ -788,6 +833,14 @@
 
         async function loadDashboard() {
             if (!checkAuth()) return;
+            
+            // Update WebSocket badge
+            const wsBadge = document.getElementById('wsBadge');
+            if (wsBadge) {
+                wsBadge.innerHTML = socketConnected ? '🔌 Socket: Live' : '🔌 Socket: Offline';
+                wsBadge.className = socketConnected ? 'ws-badge' : 'ws-badge offline';
+            }
+            
             await fetchAll();
             loadTab('dashboard');
         }
@@ -804,7 +857,6 @@
             try { const res = await fetchWithToken(`${API_URL}/api/reviews/all`); const data = await res.json(); if (data.success) allReviews = data.reviews; } catch(e) {}
             try { const res = await fetchWithToken(`${API_URL}/api/promo/all`); const data = await res.json(); if (data.success) allPromoCodes = data.promoCodes; } catch(e) {}
             try { const res = await fetch(`${API_URL}/api/loyalty/leaderboard`); const data = await res.json(); if (data.success) allLoyalty = data.leaderboard; } catch(e) {}
-            try { const res = await fetch(`${API_URL}/api/driver/online`); const data = await res.json(); if (data.success) onlineDrivers = data.drivers || []; } catch(e) {}
         }
 
         function getRoleBadge(role) {
@@ -825,6 +877,7 @@
             const completedBookings = stats.bookings?.completed || allBookings.filter(b => b.status === 'completed').length;
             const monthlyRevenue = paymentAnalytics.monthlyRevenue || [];
             const maxRevenue = Math.max(...monthlyRevenue.map(m => m.revenue), 1000);
+            
             document.getElementById('content').innerHTML = `
                 <div class="stats-grid">
                     <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-value">$${totalRevenue.toLocaleString()}</div><div class="stat-label">Total Revenue</div></div>
@@ -832,10 +885,38 @@
                     <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-value">${totalBookings}</div><div class="stat-label">Total Bookings</div></div>
                     <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-value">${completedBookings}</div><div class="stat-label">Completed</div></div>
                 </div>
-                <div class="online-card"><div class="card-title">Online Drivers (${onlineDrivers.length})</div><div class="driver-list">${onlineDrivers.length === 0 ? '<span class="driver-item">No drivers online</span>' : onlineDrivers.map(d => `<div class="driver-item"><span class="online-dot"></span> ${d.name || d.firstName || 'Driver'}</div>`).join('')}</div></div>
-                <div class="card"><div class="card-header"><div class="card-title">Monthly Revenue</div></div><div class="chart-container">${monthlyRevenue.map(m => `<div class="chart-bar"><div class="bar-fill" style="height:${(m.revenue / maxRevenue) * 150}px"></div><span>${m.month}</span><small>$${m.revenue || 0}</small></div>`).join('')}</div></div>
-                <div class="card"><div class="card-header"><div class="card-title">Recent Users</div></div><div class="table-wrapper"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead><tbody>${allUsers.slice(0,5).map(u => `<tr><td>${u.firstName || ''} ${u.lastName || ''}</td><td>${u.email}</td><td>${getRoleBadge(u.role)}</td></tr>`).join('')}</tbody></table></div></div>
+                
+                <div class="online-card">
+                    <div class="card-title">
+                        <i class="fas fa-circle" style="color:#10b981; font-size:10px;"></i> 
+                        Real-Time Drivers 
+                        <span class="real-time-badge">${cfRealtimeConnected ? 'Live' : 'Connecting...'}</span>
+                    </div>
+                    <div class="driver-list" id="onlineDriversList">
+                        <span class="driver-item">Loading online drivers...</span>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header"><div class="card-title">Monthly Revenue</div></div>
+                    <div class="chart-container" style="display:flex; gap:20px; justify-content:center; align-items:flex-end; height:200px;">
+                        ${monthlyRevenue.map(m => `<div style="text-align:center;"><div style="width:50px; background:#8b5cf6; border-radius:8px; height:${(m.revenue / maxRevenue) * 150}px; margin-bottom:8px;"></div><span>${m.month}</span><div>$${m.revenue || 0}</div></div>`).join('')}
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header"><div class="card-title">Recent Users</div></div>
+                    <div class="table-wrapper"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead><tbody>${allUsers.slice(0,5).map(u => `<tr><td>${u.firstName || ''} ${u.lastName || ''}</td><td>${u.email}</td><td>${getRoleBadge(u.role)}</td></tr>`).join('')}</tbody></table></div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header"><div class="card-title">Recent Bookings</div></div>
+                    <div class="table-wrapper"><table><thead><tr><th>Service</th><th>Customer</th><th>Status</th><th>Amount</th></tr></thead><tbody>${allBookings.slice(0,5).map(b => `<tr><td>${b.serviceName || '-'}</td><td>${b.customerId?.firstName || '-'}</td><td>${getStatusBadge(b.status)}</td><td>$${b.totalAmount || 0}</td></tr>`).join('')}</tbody></table></div>
+                </div>
             `;
+            
+            // Fetch online drivers from Cloudflare
+            refreshOnlineDrivers();
         }
 
         function renderUsers() {
@@ -850,7 +931,7 @@
         function renderBookings() {
             let filtered = allBookings.filter(b => filterStatus === 'all' || b.status === filterStatus);
             document.getElementById('content').innerHTML = `
-                <div class="card"><div class="card-header"><div class="card-title">Booking Management</div><div class="filters"><select class="filter-select" id="statusFilter" onchange="filterStatusChange()"><option value="all">All</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="in-progress">In Progress</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div></div>
+                <div class="card"><div class="card-header"><div class="card-title">Booking Management ${cfRealtimeConnected ? '<span class="real-time-badge">Live Updates</span>' : ''}</div><div class="filters"><select class="filter-select" id="statusFilter" onchange="filterStatusChange()"><option value="all">All</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="in-progress">In Progress</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div></div>
                 <div class="table-wrapper"><table><thead><tr><th>Service</th><th>Customer</th><th>Provider</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>${filtered.map(b => `<tr><td>${b.serviceName || '-'}</td><td>${b.customerId?.firstName || '-'} ${b.customerId?.lastName || ''}</td><td>${b.providerId?.businessName || b.providerId?.firstName || '-'}</td><td>${new Date(b.bookingDate).toLocaleDateString()}</td><td>$${b.totalAmount || 0}</td><td>${getStatusBadge(b.status)}</td></tr>`).join('')}</tbody></table></div></div>
             `;
             if (document.getElementById('statusFilter')) document.getElementById('statusFilter').value = filterStatus;
@@ -865,15 +946,15 @@
 
         function renderPayouts() {
             document.getElementById('content').innerHTML = `
-                <div class="card"><div class="card-header"><div class="card-title">Provider Payouts</div></div>${pendingPayouts.providerPayouts?.length ? pendingPayouts.providerPayouts.map(p => `<div class="pending-item"><span><strong>${p.name}</strong> - ${p.count} bookings</span><span style="color:#10b981;">$${p.amount}</span><button class="btn-sm btn-success" onclick="processPayout('${p.id}','provider')">Process</button></div>`).join('') : '<div class="empty-state">No pending provider payouts</div>'}</div>
-                <div class="card"><div class="card-header"><div class="card-title">Driver Payouts</div></div>${pendingPayouts.driverPayouts?.length ? pendingPayouts.driverPayouts.map(d => `<div class="pending-item"><span><strong>${d.name}</strong> - ${d.count} deliveries</span><span style="color:#10b981;">$${d.amount}</span><button class="btn-sm btn-success" onclick="processPayout('${d.id}','driver')">Process</button></div>`).join('') : '<div class="empty-state">No pending driver payouts</div>'}</div>
+                <div class="card"><div class="card-header"><div class="card-title">Provider Payouts</div></div>${pendingPayouts.providerPayouts?.length ? pendingPayouts.providerPayouts.map(p => `<div class="pending-item" style="display:flex; justify-content:space-between; padding:12px; border-bottom:1px solid #e5e7eb;"><span><strong>${p.name}</strong> - ${p.count} bookings</span><span style="color:#10b981;">$${p.amount}</span><button class="btn-sm btn-success" onclick="processPayout('${p.id}','provider')">Process</button></div>`).join('') : '<div class="empty-state">No pending provider payouts</div>'}</div>
+                <div class="card"><div class="card-header"><div class="card-title">Driver Payouts</div></div>${pendingPayouts.driverPayouts?.length ? pendingPayouts.driverPayouts.map(d => `<div class="pending-item" style="display:flex; justify-content:space-between; padding:12px; border-bottom:1px solid #e5e7eb;"><span><strong>${d.name}</strong> - ${d.count} deliveries</span><span style="color:#10b981;">$${d.amount}</span><button class="btn-sm btn-success" onclick="processPayout('${d.id}','driver')">Process</button></div>`).join('') : '<div class="empty-state">No pending driver payouts</div>'}</div>
             `;
         }
 
         function renderRefunds() {
             document.getElementById('content').innerHTML = `
                 <div class="card"><div class="card-header"><div class="card-title">Refund Requests</div></div>
-                <div class="table-wrapper"></table><thead><tr><th>Customer</th><th>Service</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody>${allRefunds.map(r => `<tr><td>${r.customerId?.firstName || '-'} ${r.customerId?.lastName || ''}</td><td>${r.bookingId?.serviceName || '-'}</td><td>$${r.amount}</td><td>${getStatusBadge(r.status)}</td><td>${r.status === 'pending' ? `<button class="btn-sm btn-purple" onclick='openRefundModal(${JSON.stringify(r).replace(/'/g, "\\'")})'>Review</button>` : '-'}</td></tr>`).join('')}</tbody></table></div></div>
+                <div class="table-wrapper"><table><thead><tr><th>Customer</th><th>Service</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody>${allRefunds.map(r => `<tr><td>${r.customerId?.firstName || '-'} ${r.customerId?.lastName || ''}</td><td>${r.bookingId?.serviceName || '-'}</td><td>$${r.amount}</td><td>${getStatusBadge(r.status)}</td><td>${r.status === 'pending' ? `<button class="btn-sm btn-purple" onclick='openRefundModal(${JSON.stringify(r).replace(/'/g, "\\'")})'>Review</button>` : '-'}</td></tr>`).join('')}</tbody></table></div></div>
             `;
         }
 
@@ -894,7 +975,7 @@
         function renderLoyalty() {
             document.getElementById('content').innerHTML = `
                 <div class="card"><div class="card-header"><div class="card-title">Loyalty Leaderboard</div></div>
-                <div class="table-wrapper"><table><thead><tr><th>Rank</th><th>User</th><th>Tier</th><th>Points</th></thead><tbody>${allLoyalty.slice(0,10).map((l,i) => `<tr><td>${i+1}${i===0?'🥇':i===1?'🥈':i===2?'🥉':''}</td><td>${l.userId?.firstName || ''} ${l.userId?.lastName || ''}</td><td>${l.tier || 'Bronze'}</td><td>${l.points?.toLocaleString() || 0}</td></tr>`).join('')}</tbody></table></div></div>
+                <div class="table-wrapper"><table><thead><tr><th>Rank</th><th>User</th><th>Tier</th><th>Points</th></tr></thead><tbody>${allLoyalty.slice(0,10).map((l,i) => `<tr><td>${i+1}${i===0?'🥇':i===1?'🥈':i===2?'🥉':''}</td><td>${l.userId?.firstName || ''} ${l.userId?.lastName || ''}</td><td>${l.tier || 'Bronze'}</td><td>${l.points?.toLocaleString() || 0}</td></tr>`).join('')}</tbody></table></div></div>
             `;
         }
 
@@ -905,31 +986,26 @@
         async function updateUserStatus(userId, activate) {
             try { await fetchWithToken(`${API_URL}/api/admin/users/${userId}`, { method: 'PUT', body: JSON.stringify({ isActive: activate }) }); alert(`User ${activate ? 'activated' : 'suspended'}`); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); }
         }
-        async function deleteUser(userId) {
-            if (confirm('Delete user?')) { try { await fetchWithToken(`${API_URL}/api/admin/users/${userId}`, { method: 'DELETE' }); alert('Deleted'); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); } }
-        }
-        async function toggleService(serviceId, isActive) {
-            try { await fetchWithToken(`${API_URL}/api/admin/services/${serviceId}/status`, { method: 'PATCH', body: JSON.stringify({ isActive: !isActive }) }); alert(`Service ${!isActive ? 'shown' : 'hidden'}`); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); }
-        }
-        async function processPayout(userId, type) {
-            if (confirm(`Process payout?`)) { try { await fetchWithToken(`${API_URL}/api/admin/process-payout`, { method: 'POST', body: JSON.stringify({ userId, type }) }); alert('Processed'); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); } }
-        }
-        async function hideReview(reviewId) {
-            if (confirm('Hide review?')) { try { await fetchWithToken(`${API_URL}/api/reviews/hide/${reviewId}`, { method: 'PUT' }); alert('Hidden'); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); } }
-        }
-        async function deletePromoCode(id, code) {
-            if (confirm(`Delete ${code}?`)) { try { await fetchWithToken(`${API_URL}/api/promo/${id}`, { method: 'DELETE' }); alert('Deleted'); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); } }
-        }
+        async function deleteUser(userId) { if (confirm('Delete user?')) { try { await fetchWithToken(`${API_URL}/api/admin/users/${userId}`, { method: 'DELETE' }); alert('Deleted'); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); } } }
+        async function toggleService(serviceId, isActive) { try { await fetchWithToken(`${API_URL}/api/admin/services/${serviceId}/status`, { method: 'PATCH', body: JSON.stringify({ isActive: !isActive }) }); alert(`Service ${!isActive ? 'shown' : 'hidden'}`); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); } }
+        async function processPayout(userId, type) { if (confirm(`Process payout?`)) { try { await fetchWithToken(`${API_URL}/api/admin/process-payout`, { method: 'POST', body: JSON.stringify({ userId, type }) }); alert('Processed'); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); } } }
+        async function hideReview(reviewId) { if (confirm('Hide review?')) { try { await fetchWithToken(`${API_URL}/api/reviews/hide/${reviewId}`, { method: 'PUT' }); alert('Hidden'); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); } } }
+        async function deletePromoCode(id, code) { if (confirm(`Delete ${code}?`)) { try { await fetchWithToken(`${API_URL}/api/promo/${id}`, { method: 'DELETE' }); alert('Deleted'); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); } } }
+        
         function openRefundModal(refund) { selectedRefund = refund; document.getElementById('refundDetails').innerHTML = `<p><strong>Customer:</strong> ${refund.customerId?.firstName}</p><p><strong>Amount:</strong> $${refund.amount}</p><p><strong>Reason:</strong> ${refund.reason}</p>`; document.getElementById('refundModal').classList.add('active'); }
-        function showRejectReason() { document.getElementById('rejectSection').style.display = 'block'; }
         async function approveRefund() { try { await fetchWithToken(`${API_URL}/api/refunds/${selectedRefund._id}/approve`, { method: 'POST', body: JSON.stringify({ adminNotes: document.getElementById('adminNotes').value }) }); alert('Approved'); closeModal('refundModal'); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); } }
-        async function rejectRefund() { const reason = document.getElementById('rejectionReason').value; if (!reason) { alert('Reason required'); return; } try { await fetchWithToken(`${API_URL}/api/refunds/${selectedRefund._id}/reject`, { method: 'POST', body: JSON.stringify({ rejectionReason: reason }) }); alert('Rejected'); closeModal('refundModal'); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); } }
-        function closeModal(modalId) { document.getElementById(modalId).classList.remove('active'); document.getElementById('rejectSection').style.display = 'none'; selectedRefund = null; }
+        async function rejectRefund() { const reason = prompt('Reason for rejection:'); if (!reason) { alert('Reason required'); return; } try { await fetchWithToken(`${API_URL}/api/refunds/${selectedRefund._id}/reject`, { method: 'POST', body: JSON.stringify({ rejectionReason: reason }) }); alert('Rejected'); closeModal('refundModal'); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); } }
+        function closeModal(modalId) { document.getElementById(modalId).classList.remove('active'); selectedRefund = null; }
         function openPromoModal() { document.getElementById('promoModal').classList.add('active'); }
         async function createPromoCode() { const code = document.getElementById('promoCode').value.toUpperCase(); const discountValue = parseFloat(document.getElementById('promoValue').value); if (!code || !discountValue) { alert('Code and value required'); return; } try { await fetchWithToken(`${API_URL}/api/promo/create`, { method: 'POST', body: JSON.stringify({ code, description: document.getElementById('promoDesc').value, discountType: document.getElementById('promoType').value, discountValue, minPurchase: parseFloat(document.getElementById('promoMinPurchase').value) || 0, usageLimit: parseInt(document.getElementById('promoLimit').value) || 1, validUntil: document.getElementById('promoValidUntil').value }) }); alert('Created'); closeModal('promoModal'); await fetchAll(); loadTab(currentTab); } catch(e) { alert('Error'); } }
+        
         function filterRoleChange() { filterRole = document.getElementById('roleFilter').value; renderUsers(); }
         function filterSearch() { searchTerm = document.getElementById('searchInput').value; renderUsers(); }
         function filterStatusChange() { filterStatus = document.getElementById('statusFilter').value; renderBookings(); }
+        
+        function refreshDashboard() { if (currentTab === 'dashboard') { fetchAll(); renderDashboard(); } }
+        function refreshBookings() { if (currentTab === 'bookings') { fetchAll(); renderBookings(); } }
+        
         async function loadTab(tab) {
             currentTab = tab;
             document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
@@ -941,8 +1017,17 @@
         }
 
         document.querySelectorAll('.menu-item').forEach(el => el.addEventListener('click', () => loadTab(el.dataset.tab)));
-        if (token) { loadDashboard(); } else { showLogin(); }
+        
+        // Auto-refresh dashboard every 30 seconds
         setInterval(() => { if (currentTab === 'dashboard' && token) { fetchAll(); renderDashboard(); } }, 30000);
+        
+        // Start
+        if (token) {
+            connectCloudflareRealtime();
+            loadDashboard();
+        } else {
+            showLogin();
+        }
     </script>
 </body>
 </html>

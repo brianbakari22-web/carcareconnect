@@ -7,6 +7,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { useSocket } from '../hooks/useSocket';
+import { useRealtime } from '../hooks/useRealtime';
 import DiscoveryPage from './DiscoveryPage';
 import DriverMap from '../components/DriverMap';
 import WhatsAppButton from '../components/WhatsAppButton';
@@ -77,6 +78,10 @@ function CustomerDashboard({ user, onLogout }) {
   const [filters, setFilters] = useState({ category: 'all', search: '', minPrice: '', maxPrice: '' });
 
   const token = localStorage.getItem('token');
+  const customerId = user?._id;
+
+  // Real-time WebSocket connection for customer
+  const { isConnected: wsConnected, trackDriver, location: driverRealTimeLocation } = useRealtime('customer', customerId);
 
   const { 
     isConnected,
@@ -94,7 +99,7 @@ function CustomerDashboard({ user, onLogout }) {
 
   const fetchUserProfile = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/auth/me', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/auth/me', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -115,7 +120,7 @@ function CustomerDashboard({ user, onLogout }) {
   useEffect(() => {
     const fetchLoyalty = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/loyalty/my-points', {
+        const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/loyalty/my-points', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
@@ -131,6 +136,22 @@ function CustomerDashboard({ user, onLogout }) {
     fetchUserProfile();
   }, []);
 
+  // Update driver locations from both WebSocket and Cloudflare real-time
+  useEffect(() => {
+    if (driverRealTimeLocation) {
+      setDriverLocations(prev => ({
+        ...prev,
+        ['cloudflare-driver']: {
+          lat: driverRealTimeLocation.lat,
+          lng: driverRealTimeLocation.lng,
+          address: 'En route',
+          lastUpdate: new Date(),
+          source: 'cloudflare'
+        }
+      }));
+    }
+  }, [driverRealTimeLocation]);
+
   useEffect(() => {
     const unsubscribe = onDriverLiveLocation((data) => {
       console.log('📍 Driver location update:', data);
@@ -140,7 +161,8 @@ function CustomerDashboard({ user, onLogout }) {
           lat: data.lat,
           lng: data.lng,
           address: data.address || 'En route',
-          lastUpdate: new Date()
+          lastUpdate: new Date(),
+          source: 'socket'
         }
       }));
     });
@@ -183,6 +205,7 @@ function CustomerDashboard({ user, onLogout }) {
     bookings.forEach(booking => {
       if (booking.driverId && (booking.status === 'confirmed' || booking.status === 'in-progress' || booking.status === 'driver-assigned')) {
         subscribeToDriver(booking.driverId);
+        trackDriver(booking.driverId);
         joinBookingRoom(booking._id);
       }
     });
@@ -191,7 +214,7 @@ function CustomerDashboard({ user, onLogout }) {
         if (booking.driverId) unsubscribeFromDriver(booking.driverId);
       });
     };
-  }, [bookings]);
+  }, [bookings, trackDriver]);
 
   useEffect(() => {
     fetchAllData();
@@ -216,7 +239,7 @@ function CustomerDashboard({ user, onLogout }) {
 
   const fetchServices = async () => {
     try {
-      let url = 'http://localhost:5000/api/services';
+      let url = 'https://carcare-api.brianbakari22.workers.dev/api/services';
       const res = await fetch(url);
       const data = await res.json();
       if (data.success) setServices(data.services || []);
@@ -227,7 +250,7 @@ function CustomerDashboard({ user, onLogout }) {
 
   const fetchVehicles = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/services/customer/vehicles', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/services/customer/vehicles', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -239,7 +262,7 @@ function CustomerDashboard({ user, onLogout }) {
 
   const fetchBookings = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/services/customer/bookings', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/services/customer/bookings', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -252,7 +275,7 @@ function CustomerDashboard({ user, onLogout }) {
   const fetchPaymentHistory = async () => {
     setLoadingPayments(true);
     try {
-      const res = await fetch('http://localhost:5000/api/payments/customer/history', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/payments/customer/history', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -270,7 +293,7 @@ function CustomerDashboard({ user, onLogout }) {
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
       
-      const res = await fetch('http://localhost:5000/api/customer/profile', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/customer/profile', {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json', 
@@ -308,7 +331,7 @@ function CustomerDashboard({ user, onLogout }) {
 
   const submitReview = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/reviews/submit', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/reviews/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -361,7 +384,7 @@ function CustomerDashboard({ user, onLogout }) {
         pickupAddress: bookingData.pickupAddress,
         notes: bookingData.notes
       };
-      const res = await fetch('http://localhost:5000/api/services/customer/bookings', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/services/customer/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(payload)
@@ -384,7 +407,7 @@ function CustomerDashboard({ user, onLogout }) {
   const addVehicle = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/services/customer/vehicles', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/services/customer/vehicles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(newVehicle)
@@ -404,7 +427,7 @@ function CustomerDashboard({ user, onLogout }) {
   const deleteVehicle = async (vehicleId) => {
     if (window.confirm('Remove this vehicle?')) {
       try {
-        const res = await fetch(`http://localhost:5000/api/services/customer/vehicles/${vehicleId}`, {
+        const res = await fetch(`https://carcare-api.brianbakari22.workers.dev/api/services/customer/vehicles/${vehicleId}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -421,7 +444,7 @@ function CustomerDashboard({ user, onLogout }) {
 
   const downloadInvoice = async (bookingId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/invoices/download/${bookingId}`, {
+      const res = await fetch(`https://carcare-api.brianbakari22.workers.dev/api/invoices/download/${bookingId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -443,7 +466,7 @@ function CustomerDashboard({ user, onLogout }) {
       return;
     }
     try {
-      const res = await fetch('http://localhost:5000/api/refunds/request', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/refunds/request', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -535,7 +558,7 @@ function CustomerDashboard({ user, onLogout }) {
     notificationIcon: { position: 'relative', cursor: 'pointer', fontSize: '22px' },
     notificationBadge: { position: 'absolute', top: '-8px', right: '-8px', backgroundColor: '#ef4444', color: 'white', fontSize: '10px', padding: '2px 6px', borderRadius: '10px' },
     themeToggle: { background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '8px', borderRadius: '8px', backgroundColor: darkMode ? '#334155' : '#f3f4f6' },
-    wsBadge: { backgroundColor: isConnected ? '#10b981' : '#ef4444', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', color: 'white', display: 'flex', alignItems: 'center', gap: '5px' },
+    wsBadge: { backgroundColor: isConnected && wsConnected ? '#10b981' : '#ef4444', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', color: 'white', display: 'flex', alignItems: 'center', gap: '5px' },
     discoveryBtn: { backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '20px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' },
     userInfo: { display: 'flex', alignItems: 'center', gap: '15px' },
     avatar: { width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white' },
@@ -623,7 +646,8 @@ function CustomerDashboard({ user, onLogout }) {
     modalActions: { display: 'flex', gap: '10px', marginTop: '20px' },
     submitBtn: { backgroundColor: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' },
     cancelBtn: { backgroundColor: '#6b7280', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' },
-    emptyState: { textAlign: 'center', padding: '40px', color: '#6b7280' }
+    emptyState: { textAlign: 'center', padding: '40px', color: '#6b7280' },
+    reviewStars: { display: 'flex', gap: '5px', marginBottom: '15px' }
   };
 
   if (loading) {
@@ -678,8 +702,8 @@ function CustomerDashboard({ user, onLogout }) {
           </div>
           <div style={styles.headerRight}>
             <div style={styles.wsBadge}>
-              <span style={{ width: '8px', height: '8px', backgroundColor: isConnected ? '#10b981' : '#ef4444', borderRadius: '50%', display: 'inline-block' }}></span>
-              {isConnected ? 'Live' : 'Offline'}
+              <span style={{ width: '8px', height: '8px', backgroundColor: isConnected && wsConnected ? '#10b981' : '#ef4444', borderRadius: '50%', display: 'inline-block' }}></span>
+              {isConnected && wsConnected ? 'Live' : 'Offline'}
             </div>
             <button style={styles.discoveryBtn} onClick={() => setShowDiscovery(true)}>🔍 Discover</button>
             <div style={styles.notificationIcon} onClick={() => setShowNotifications(!showNotifications)}>
@@ -740,6 +764,9 @@ function CustomerDashboard({ user, onLogout }) {
               <div style={styles.welcomeCard}>
                 <div><h2 style={{ margin: '0 0 5px 0' }}>Welcome back!</h2><p style={{ margin: 0, opacity: 0.9 }}>Your next service is just a click away</p></div>
                 <span style={styles.loyaltyBadge}>⭐ {loyaltyPoints} loyalty points</span>
+              </div>
+              <div style={styles.quickStats} style={{ display: 'flex', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                <div style={styles.quickStat}><span>🌐</span> Real-time: {wsConnected ? '✅ Connected' : '❌ Connecting...'}</div>
               </div>
               <div style={styles.twoColumn}>
                 <div>

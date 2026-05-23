@@ -16,7 +16,7 @@ export const useSocket = () => {
     }
     
     // Connect to socket server
-    socketRef.current = io('http://localhost:5000', {
+    socketRef.current = io('https://carcare-api.brianbakari22.workers.dev', {
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,

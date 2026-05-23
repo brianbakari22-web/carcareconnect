@@ -1,0 +1,25 @@
+name = "carcare-api"
+main = "src/index.js"
+compatibility_date = "2026-05-23"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "carcare-db"
+database_id = "9323ec0a-585c-47b2-ad4e-6591fefd834e"
+
+[[kv_namespaces]]
+binding = "DRIVER_LOCATIONS"
+id = "11ed9c75be664367892c39907f86e008"
+
+[[kv_namespaces]]
+binding = "DRIVER_STATUS"
+id = "f9687613a1254235a9cdc069a32e1533"
+
+[[kv_namespaces]]
+binding = "DRIVER_FOLLOWERS"
+id = "fbef456cc2f74517bc6c2b8b59097aa3"
+
+[vars]
+FRONTEND_URL = "https://carcareconnect.pages.dev"
+ENVIRONMENT = "production"

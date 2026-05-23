@@ -23,7 +23,7 @@ function PaymentModal({ booking, amount, onSuccess, onCancel }) {
     
     try {
       // Create payment intent
-      const intentRes = await fetch('http://localhost:5000/api/payments/create-intent', {
+      const intentRes = await fetch('https://carcare-api.brianbakari22.workers.dev/api/payments/create-intent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -58,7 +58,7 @@ function PaymentModal({ booking, amount, onSuccess, onCancel }) {
       }
       
       // Confirm payment on backend
-      const confirmRes = await fetch('http://localhost:5000/api/payments/confirm', {
+      const confirmRes = await fetch('https://carcare-api.brianbakari22.workers.dev/api/payments/confirm', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -89,7 +89,7 @@ function PaymentModal({ booking, amount, onSuccess, onCancel }) {
     setProcessing(true);
     
     try {
-      const res = await fetch('http://localhost:5000/api/payments/cash', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/payments/cash', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

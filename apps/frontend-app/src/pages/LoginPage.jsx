@@ -15,7 +15,7 @@ function LoginPage({ role, onBack, onLogin, onRegister }) {
     console.log('Sending login request:', loginData);
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch('https://carcare-api.brianbakari22.workers.dev/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(loginData)
@@ -91,7 +91,7 @@ function LoginPage({ role, onBack, onLogin, onRegister }) {
 
         {/* Debug info */}
         <div style={{ fontSize: '10px', color: '#ccc', marginTop: '20px', textAlign: 'center' }}>
-          API URL: http://localhost:5000/api/auth/login
+          API URL: https://carcare-api.brianbakari22.workers.dev/api/auth/login
         </div>
       </div>
     </div>

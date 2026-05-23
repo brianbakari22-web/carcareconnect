@@ -116,7 +116,7 @@ function AdminDashboard({ user, onLogout }) {
 
   const fetchOnlineUsers = async () => {
     try {
-      const driversRes = await fetch('http://localhost:5000/api/driver/online');
+      const driversRes = await fetch('https://carcare-api.brianbakari22.workers.dev/api/driver/online');
       const driversData = await driversRes.json();
       if (driversData.success) {
         setOnlineUsers(prev => ({ ...prev, drivers: driversData.drivers || [] }));
@@ -149,7 +149,7 @@ function AdminDashboard({ user, onLogout }) {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/admin/stats', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/admin/stats', {
         headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       const data = await res.json();
@@ -159,7 +159,7 @@ function AdminDashboard({ user, onLogout }) {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/admin/users', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/admin/users', {
         headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       const data = await res.json();
@@ -169,7 +169,7 @@ function AdminDashboard({ user, onLogout }) {
 
   const fetchBookings = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/admin/bookings', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/admin/bookings', {
         headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       const data = await res.json();
@@ -179,7 +179,7 @@ function AdminDashboard({ user, onLogout }) {
 
   const fetchServices = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/admin/services', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/admin/services', {
         headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       const data = await res.json();
@@ -189,7 +189,7 @@ function AdminDashboard({ user, onLogout }) {
 
   const fetchPaymentAnalytics = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/admin/payment-analytics', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/admin/payment-analytics', {
         headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       const data = await res.json();
@@ -199,7 +199,7 @@ function AdminDashboard({ user, onLogout }) {
 
   const fetchPendingPayouts = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/admin/pending-payouts', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/admin/pending-payouts', {
         headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       const data = await res.json();
@@ -209,7 +209,7 @@ function AdminDashboard({ user, onLogout }) {
 
   const fetchRefunds = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/refunds/all', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/refunds/all', {
         headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       const data = await res.json();
@@ -220,7 +220,7 @@ function AdminDashboard({ user, onLogout }) {
   const fetchAllReviews = async () => {
     setReviewsLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/reviews/all', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/reviews/all', {
         headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       const data = await res.json();
@@ -235,7 +235,7 @@ function AdminDashboard({ user, onLogout }) {
   const hideReview = async (reviewId) => {
     if (window.confirm('Hide this review?')) {
       try {
-        const res = await fetch(`http://localhost:5000/api/reviews/hide/${reviewId}`, {
+        const res = await fetch(`https://carcare-api.brianbakari22.workers.dev/api/reviews/hide/${reviewId}`, {
           method: 'PUT',
           headers: { 'Authorization': `Bearer ${adminToken}` }
         });
@@ -252,7 +252,7 @@ function AdminDashboard({ user, onLogout }) {
 
   const fetchPromoCodes = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/promo/all', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/promo/all', {
         headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       const data = await res.json();
@@ -265,7 +265,7 @@ function AdminDashboard({ user, onLogout }) {
   const createPromoCode = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/promo/create', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/promo/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -297,7 +297,7 @@ function AdminDashboard({ user, onLogout }) {
   const deletePromoCode = async (id, code) => {
     if (window.confirm(`Delete promo code "${code}"?`)) {
       try {
-        const res = await fetch(`http://localhost:5000/api/promo/${id}`, {
+        const res = await fetch(`https://carcare-api.brianbakari22.workers.dev/api/promo/${id}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${adminToken}` }
         });
@@ -314,7 +314,7 @@ function AdminDashboard({ user, onLogout }) {
 
   const fetchLoyaltyLeaderboard = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/loyalty/leaderboard');
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/loyalty/leaderboard');
       const data = await res.json();
       if (data.success) {
         setLoyaltyLeaderboard(data.leaderboard);
@@ -332,7 +332,7 @@ function AdminDashboard({ user, onLogout }) {
 
   const updateUserStatus = async (userId, isActive) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
+      const res = await fetch(`https://carcare-api.brianbakari22.workers.dev/api/admin/users/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
         body: JSON.stringify({ isActive })
@@ -349,7 +349,7 @@ function AdminDashboard({ user, onLogout }) {
 
   const verifyUser = async (userId, role) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
+      const res = await fetch(`https://carcare-api.brianbakari22.workers.dev/api/admin/users/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
         body: JSON.stringify({ isVerified: true })
@@ -366,7 +366,7 @@ function AdminDashboard({ user, onLogout }) {
   const deleteUser = async (userId, name) => {
     if (window.confirm(`Delete ${name}? This action cannot be undone.`)) {
       try {
-        await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
+        await fetch(`https://carcare-api.brianbakari22.workers.dev/api/admin/users/${userId}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${adminToken}` }
         });
@@ -381,7 +381,7 @@ function AdminDashboard({ user, onLogout }) {
 
   const toggleServiceStatus = async (serviceId, isActive) => {
     try {
-      await fetch(`http://localhost:5000/api/admin/services/${serviceId}/status`, {
+      await fetch(`https://carcare-api.brianbakari22.workers.dev/api/admin/services/${serviceId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
         body: JSON.stringify({ isActive: !isActive })
@@ -395,7 +395,7 @@ function AdminDashboard({ user, onLogout }) {
 
   const processPayout = async (userId, type) => {
     try {
-      await fetch('http://localhost:5000/api/admin/process-payout', {
+      await fetch('https://carcare-api.brianbakari22.workers.dev/api/admin/process-payout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
         body: JSON.stringify({ userId, type })
@@ -410,7 +410,7 @@ function AdminDashboard({ user, onLogout }) {
 
   const approveRefund = async (refundId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/refunds/${refundId}/approve`, {
+      const res = await fetch(`https://carcare-api.brianbakari22.workers.dev/api/refunds/${refundId}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
         body: JSON.stringify({ adminNotes })
@@ -435,7 +435,7 @@ function AdminDashboard({ user, onLogout }) {
       return;
     }
     try {
-      const res = await fetch(`http://localhost:5000/api/refunds/${refundId}/reject`, {
+      const res = await fetch(`https://carcare-api.brianbakari22.workers.dev/api/refunds/${refundId}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
         body: JSON.stringify({ rejectionReason })
@@ -456,7 +456,7 @@ function AdminDashboard({ user, onLogout }) {
 
   const downloadInvoice = async (transactionId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/invoices/download/${transactionId}`, {
+      const res = await fetch(`https://carcare-api.brianbakari22.workers.dev/api/invoices/download/${transactionId}`, {
         headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       if (res.ok) {

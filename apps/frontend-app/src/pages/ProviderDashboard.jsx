@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useSocket } from '../hooks/useSocket';
+import { useRealtime } from '../hooks/useRealtime';
 import WhatsAppButton from '../components/WhatsAppButton';
 import { StatCard, ModernButton, Badge } from '../components/ModernUI';
 import { initializePushNotifications, requestNotificationPermission, sendPushNotification } from '../utils/pushNotifications';
@@ -98,10 +99,14 @@ function ProviderDashboard({ user, onLogout }) {
   ];
 
   const token = localStorage.getItem('token');
+  const providerId = user?._id;
+
+  // Real-time WebSocket connection for provider
+  const { isConnected: wsConnected, updateBookingStatus: realtimeUpdateStatus } = useRealtime('provider', providerId);
 
   const fetchUserProfile = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/auth/me', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/auth/me', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -144,7 +149,7 @@ function ProviderDashboard({ user, onLogout }) {
   useEffect(() => {
     const fetchUnreadCount = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/chat/unread/count', {
+        const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/chat/unread/count', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
@@ -223,7 +228,7 @@ function ProviderDashboard({ user, onLogout }) {
   const fetchProviderReviews = async () => {
     setReviewsLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/reviews/my-reviews', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/reviews/my-reviews', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -241,7 +246,7 @@ function ProviderDashboard({ user, onLogout }) {
 
   const fetchServices = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/services/provider/my-services', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/services/provider/my-services', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -251,7 +256,7 @@ function ProviderDashboard({ user, onLogout }) {
 
   const fetchBookings = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/services/provider/bookings', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/services/provider/bookings', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -261,7 +266,7 @@ function ProviderDashboard({ user, onLogout }) {
 
   const fetchEarnings = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/payments/provider/earnings', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/payments/provider/earnings', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -276,7 +281,7 @@ function ProviderDashboard({ user, onLogout }) {
   const fetchPayoutHistory = async () => {
     setLoadingPayouts(true);
     try {
-      const res = await fetch('http://localhost:5000/api/payments/provider/payout-history', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/payments/provider/payout-history', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -291,7 +296,7 @@ function ProviderDashboard({ user, onLogout }) {
 
   const fetchBankAccount = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/provider/bank-account', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/provider/bank-account', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -306,7 +311,7 @@ function ProviderDashboard({ user, onLogout }) {
     e.preventDefault();
     setLoadingBank(true);
     try {
-      const res = await fetch('http://localhost:5000/api/provider/bank-account', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/provider/bank-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(bankAccount)
@@ -326,7 +331,7 @@ function ProviderDashboard({ user, onLogout }) {
   const deleteBankAccount = async () => {
     if (window.confirm('Remove bank account?')) {
       try {
-        const res = await fetch('http://localhost:5000/api/provider/bank-account', {
+        const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/provider/bank-account', {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -342,7 +347,7 @@ function ProviderDashboard({ user, onLogout }) {
 
   const checkStripeStatus = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/stripe/account-status', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/stripe/account-status', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -353,7 +358,7 @@ function ProviderDashboard({ user, onLogout }) {
   const connectStripe = async () => {
     setLoadingStripe(true);
     try {
-      const res = await fetch('http://localhost:5000/api/stripe/onboarding-link', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/stripe/onboarding-link', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -366,7 +371,7 @@ function ProviderDashboard({ user, onLogout }) {
   const disconnectStripe = async () => {
     if (window.confirm('Disconnect Stripe?')) {
       try {
-        const res = await fetch('http://localhost:5000/api/stripe/disconnect', {
+        const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/stripe/disconnect', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -382,7 +387,7 @@ function ProviderDashboard({ user, onLogout }) {
   const updateProfile = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/provider/business-profile', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/provider/business-profile', {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json', 
@@ -430,10 +435,10 @@ function ProviderDashboard({ user, onLogout }) {
         inclusions: serviceForm.inclusions.split(',').map(i => i.trim())
       };
 
-      let url = 'http://localhost:5000/api/services';
+      let url = 'https://carcare-api.brianbakari22.workers.dev/api/services';
       let method = 'POST';
       if (editingService) {
-        url = `http://localhost:5000/api/services/${editingService._id}`;
+        url = `https://carcare-api.brianbakari22.workers.dev/api/services/${editingService._id}`;
         method = 'PUT';
       }
 
@@ -458,7 +463,7 @@ function ProviderDashboard({ user, onLogout }) {
   const handleDeleteService = async (serviceId) => {
     if (window.confirm('Delete this service?')) {
       try {
-        const res = await fetch(`http://localhost:5000/api/services/${serviceId}`, {
+        const res = await fetch(`https://carcare-api.brianbakari22.workers.dev/api/services/${serviceId}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -473,7 +478,7 @@ function ProviderDashboard({ user, onLogout }) {
 
   const handleToggleStatus = async (serviceId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/services/${serviceId}/toggle-status`, {
+      const res = await fetch(`https://carcare-api.brianbakari22.workers.dev/api/services/${serviceId}/toggle-status`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -502,10 +507,13 @@ function ProviderDashboard({ user, onLogout }) {
     setShowServiceModal(true);
   };
 
-  const handleUpdateBookingStatus = async (bookingId, status) => {
+  const handleUpdateBookingStatus = async (bookingId, status, customerId) => {
     try {
+      // Update via both WebSocket and Cloudflare real-time
       updateBookingStatus(bookingId, status);
-      const res = await fetch(`http://localhost:5000/api/services/provider/bookings/${bookingId}/status`, {
+      realtimeUpdateStatus(bookingId, status, customerId);
+      
+      const res = await fetch(`https://carcare-api.brianbakari22.workers.dev/api/services/provider/bookings/${bookingId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ status })
@@ -529,7 +537,7 @@ function ProviderDashboard({ user, onLogout }) {
       return;
     }
     try {
-      const res = await fetch('http://localhost:5000/api/payments/provider/payout', {
+      const res = await fetch('https://carcare-api.brianbakari22.workers.dev/api/payments/provider/payout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ amount: parseFloat(payoutAmount) })
@@ -549,7 +557,7 @@ function ProviderDashboard({ user, onLogout }) {
 
   const downloadInvoice = async (paymentId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/invoices/download/${paymentId}`, {
+      const res = await fetch(`https://carcare-api.brianbakari22.workers.dev/api/invoices/download/${paymentId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -630,7 +638,7 @@ function ProviderDashboard({ user, onLogout }) {
     notificationIcon: { position: 'relative', cursor: 'pointer', fontSize: '22px' },
     notificationBadge: { position: 'absolute', top: '-8px', right: '-8px', backgroundColor: '#ef4444', color: 'white', fontSize: '10px', padding: '2px 6px', borderRadius: '10px' },
     themeToggle: { background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '8px', borderRadius: '8px', backgroundColor: darkMode ? '#334155' : '#f3f4f6' },
-    wsBadge: { backgroundColor: isConnected ? '#10b981' : '#ef4444', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', color: 'white', display: 'flex', alignItems: 'center', gap: '5px' },
+    wsBadge: { backgroundColor: isConnected && wsConnected ? '#10b981' : '#ef4444', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', color: 'white', display: 'flex', alignItems: 'center', gap: '5px' },
     userInfo: { display: 'flex', alignItems: 'center', gap: '15px' },
     avatar: { width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white' },
     userName: { fontWeight: '500', color: darkMode ? 'white' : '#374151' },
@@ -759,8 +767,8 @@ function ProviderDashboard({ user, onLogout }) {
           </div>
           <div style={styles.headerRight}>
             <div style={styles.wsBadge}>
-              <span style={{ width: '8px', height: '8px', backgroundColor: isConnected ? '#10b981' : '#ef4444', borderRadius: '50%', display: 'inline-block' }}></span>
-              {isConnected ? 'Live' : 'Offline'}
+              <span style={{ width: '8px', height: '8px', backgroundColor: isConnected && wsConnected ? '#10b981' : '#ef4444', borderRadius: '50%', display: 'inline-block' }}></span>
+              {isConnected && wsConnected ? 'Live' : 'Offline'}
             </div>
             {newBookingAlert && <span style={{ backgroundColor: '#ef4444', padding: '4px 8px', borderRadius: '20px', fontSize: '10px', color: 'white' }}>🔔 New Booking!</span>}
             <div style={styles.notificationIcon} onClick={() => setShowNotifications(!showNotifications)}>
@@ -814,6 +822,10 @@ function ProviderDashboard({ user, onLogout }) {
             <div style={styles.statCard}><div style={styles.statValue}>{completedBookings}</div><div style={styles.statLabel}>Completed</div></div>
             <div style={styles.statCard}><div style={styles.statValue}>{pendingBookings}</div><div style={styles.statLabel}>Pending Bookings</div></div>
             <div style={styles.statCard}><div style={styles.statValue}>${pendingPayoutAmount.toLocaleString()}<button style={styles.payoutBtn} onClick={() => setShowPayoutModal(true)}>Request</button></div><div style={styles.statLabel}>Pending Payout</div></div>
+          </div>
+
+          <div style={styles.quickStats} style={{ display: 'flex', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
+            <div style={styles.quickStat}><span>🌐</span> Real-time: {wsConnected ? '✅ Connected' : '❌ Connecting...'}</div>
           </div>
 
           {activeTab === 'dashboard' && (
@@ -907,15 +919,15 @@ function ProviderDashboard({ user, onLogout }) {
                   </div>
                   {booking.status === 'pending' && (
                     <div style={styles.bookingActions}>
-                      <button style={styles.confirmBtn} onClick={() => handleUpdateBookingStatus(booking._id, 'confirmed')}>✓ Confirm</button>
-                      <button style={styles.rejectBtn} onClick={() => handleUpdateBookingStatus(booking._id, 'cancelled')}>✗ Reject</button>
+                      <button style={styles.confirmBtn} onClick={() => handleUpdateBookingStatus(booking._id, 'confirmed', booking.customerId?._id)}>✓ Confirm</button>
+                      <button style={styles.rejectBtn} onClick={() => handleUpdateBookingStatus(booking._id, 'cancelled', booking.customerId?._id)}>✗ Reject</button>
                     </div>
                   )}
                   {booking.status === 'confirmed' && (
-                    <button style={styles.startBtn} onClick={() => handleUpdateBookingStatus(booking._id, 'in-progress')}>▶ Start Service</button>
+                    <button style={styles.startBtn} onClick={() => handleUpdateBookingStatus(booking._id, 'in-progress', booking.customerId?._id)}>▶ Start Service</button>
                   )}
                   {booking.status === 'in-progress' && (
-                    <button style={styles.completeBtn} onClick={() => handleUpdateBookingStatus(booking._id, 'completed')}>✅ Complete</button>
+                    <button style={styles.completeBtn} onClick={() => handleUpdateBookingStatus(booking._id, 'completed', booking.customerId?._id)}>✅ Complete</button>
                   )}
                   <a href={`https://mail.google.com/mail/?view=cm&fs=1&to=${booking.customerId?.email}&su=Regarding your booking for ${booking.serviceName}&body=Hello%20${booking.customerId?.firstName},%0D%0A%0D%0AThank you for your booking. I wanted to follow up regarding your ${booking.serviceName} scheduled for ${new Date(booking.bookingDate).toLocaleDateString()}.%0D%0A%0D%0APlease let me know if you have any questions.%0D%0A%0D%0ABest regards,%0D%0A${user?.businessName || user?.firstName}`} target="_blank" style={styles.emailBtn}>✉️ Message Customer</a>
                   
@@ -1170,7 +1182,7 @@ function ProviderDashboard({ user, onLogout }) {
             <div style={styles.modalActions}>
               <button onClick={async () => {
                 try {
-                  const res = await fetch(`http://localhost:5000/api/reviews/reply/${selectedReviewForReply._id}`, {
+                  const res = await fetch(`https://carcare-api.brianbakari22.workers.dev/api/reviews/reply/${selectedReviewForReply._id}`, {
                     method: 'PUT',
                     headers: {
                       'Content-Type': 'application/json',
